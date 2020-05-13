@@ -105,14 +105,14 @@ void MainWindow::on_btn_procesar_clicked()
     }
 
     //Crear/abrir la base de datos
-    if(db.opendb())
-    {
-        QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                              tr("Error abriendo/creando\n"
-                                 "la base de datos"),
-                              QMessageBox::Ok);
-        return;
-    }
+//    if(db.opendb())
+//    {
+//        QMessageBox::critical(this, tr("FUTBOL RELOAD"),
+//                              tr("Error abriendo/creando\n"
+//                                 "la base de datos"),
+//                              QMessageBox::Ok);
+//        return;
+//    }
 
     //procesado de archivos
     QString eq_file_str;
