@@ -22,7 +22,7 @@ public:
     QChar descodificar_caracter(quint8 val);
     quint8 codificar_caracter(QChar val);
     quint8 add_equipo(EQUIPO eq,QList <ENTRENADOR> ent_list, QList <JUGADOR> jug_list);
-    quint8 guardar_equipo(EQUIPO eq);
+    quint8 guardar_equipo(EQUIPO eq,QString main_path);
 private:
     QSqlDatabase sql;
     QByteArray devolver_DBC_Info_Declaraciones(QString info);

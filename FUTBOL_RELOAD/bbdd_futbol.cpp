@@ -1,5 +1,6 @@
 #include "bbdd_futbol.h"
 #include <QSqlQuery>
+#include <QFileDialog>
 
 
 BBDD_FUTBOL::BBDD_FUTBOL()
@@ -179,7 +180,7 @@ QByteArray BBDD_FUTBOL::QString2QBytePlusSize(QString cad)
     return ret;
 
 }
-quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
+quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq,QString main_path)
 {
     //comprobar que existe directorio FUTBOL45_NEW
     //comprobar que existe            DBDAT
@@ -188,22 +189,24 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
     //comprobar que existe            DBDAT/MINIFOTO
     //comprobar que existe            DBDAT/MINIENTR
 
+
+
     QDir dir;
 
-    if(!dir.exists("FUTBOL45_NEW"))
-    {dir.mkdir("FUTBOL45_NEW");}
-    if(!dir.exists("FUTBOL45_NEW/DBDAT"))
-    {dir.mkdir("FUTBOL45_NEW/DBDAT");}
-    if(!dir.exists("FUTBOL45_NEW/ESCUDOS"))
-    {dir.mkdir("FUTBOL45_NEW/ESCUDOS");}
-    if(!dir.exists("FUTBOL45_NEW/DBDAT/MINIESC"))
-    {dir.mkdir("FUTBOL45_NEW/DBDAT/MINIESC");}
-    if(!dir.exists("FUTBOL45_NEW/DBDAT/MINIFOTO"))
-    {dir.mkdir("FUTBOL45_NEW/DBDAT/MINIFOTO");}
-    if(!dir.exists("FUTBOL45_NEW/DBDAT/MINIENTR"))
-    {dir.mkdir("FUTBOL45_NEW/DBDAT/MINIENTR");}
-    if(!dir.exists("FUTBOL45_NEW/DBDAT/BIGFOTO"))
-    {dir.mkdir("FUTBOL45_NEW/DBDAT/BIGFOTO");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/ESCUDOS"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/ESCUDOS");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/MINIESC"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/MINIESC");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/MINIFOTO"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/MINIFOTO");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/MINIENTR"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/MINIENTR");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/BIGFOTO"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/BIGFOTO");}
 
     QByteArray DBC;
     DBC.clear();
@@ -352,7 +355,7 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
 
     //GRABAR LOS ARCHIVOS
     // QString("EQ95%1.DFG").arg(QString::number(equipo.EquipoIdDBC),4,QChar('0')) + "/"
-    QFile arch_dbc(QString("FUTBOL45_NEW/DBDAT/EQ%1.DBC").arg(QString::number(eq.EquipoIdDBC),6,QChar('0')));
+    QFile arch_dbc(QString(main_path+"/FUTBOL45_NEW/DBDAT/EQ%1.DBC").arg(QString::number(eq.EquipoIdDBC),6,QChar('0')));
     if(!arch_dbc.open(QIODevice::WriteOnly))
     {
         return 0; //no se ha podido abrir para escribir
@@ -360,7 +363,7 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
     arch_dbc.write(DBC);
     arch_dbc.close();
     //grabar miniescudo
-    arch_dbc.setFileName(QString("FUTBOL45_NEW/DBDAT/MINIESC/EQ%1.DFG").arg(QString::number(eq.EquipoIdDBC),6,QChar('0')));
+    arch_dbc.setFileName(QString(main_path+"/FUTBOL45_NEW/DBDAT/MINIESC/EQ%1.DFG").arg(QString::number(eq.EquipoIdDBC),6,QChar('0')));
     if(!arch_dbc.open(QIODevice::WriteOnly))
     {
         return 0; //no se ha podido abrir para escribir
@@ -370,7 +373,7 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
 
 
     //grabar escudo de simulador
-    arch_dbc.setFileName(QString("FUTBOL45_NEW/ESCUDOS/EQ%1.EMP").arg(QString::number(eq.EquipoIdDBC),6,QChar('0')));
+    arch_dbc.setFileName(QString(main_path+"/FUTBOL45_NEW/ESCUDOS/EQ%1.EMP").arg(QString::number(eq.EquipoIdDBC),6,QChar('0')));
     if(!arch_dbc.open(QIODevice::WriteOnly))
     {
         return 0; //no se ha podido abrir para escribir
@@ -383,7 +386,7 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
     {
         if(!eq.lista_entrenadores.at(i).minifoto.isEmpty())
         {
-            arch_dbc.setFileName(QString("FUTBOL45_NEW/DBDAT/MINIENTR/E95%1.DFG").arg(QString::number(eq.lista_entrenadores.at(i).puntero),5,QChar('0')));
+            arch_dbc.setFileName(QString(main_path+"/FUTBOL45_NEW/DBDAT/MINIENTR/E95%1.DFG").arg(QString::number(eq.lista_entrenadores.at(i).puntero),5,QChar('0')));
             if(!arch_dbc.open(QIODevice::WriteOnly))
             {
                 arch_dbc.close();
@@ -399,7 +402,7 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
     {
         if(!eq.lista_jugadores.at(i).minifoto.isEmpty())
         {
-            arch_dbc.setFileName(QString("FUTBOL45_NEW/DBDAT/MINIFOTO/J95%1.DFG").arg(QString::number(eq.lista_jugadores.at(i).puntero),5,QChar('0')));
+            arch_dbc.setFileName(QString(main_path+"/FUTBOL45_NEW/DBDAT/MINIFOTO/J95%1.DFG").arg(QString::number(eq.lista_jugadores.at(i).puntero),5,QChar('0')));
             if(!arch_dbc.open(QIODevice::WriteOnly))
             {
                 arch_dbc.close();
@@ -426,7 +429,7 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq)
 
     if(exist_bigfoto)
     {
-        QString path_bigfoto = QString("FUTBOL45_NEW/DBDAT/BIGFOTO/EQ%1").arg(QString::number(eq.EquipoIdDBC),4,QChar('0'));
+        QString path_bigfoto = QString(main_path+"/FUTBOL45_NEW/DBDAT/BIGFOTO/EQ%1").arg(QString::number(eq.EquipoIdDBC),4,QChar('0'));
         if(!dir.exists(path_bigfoto))
         {dir.mkdir(path_bigfoto);}
         //Crear carpeta de bigfoto del equipo

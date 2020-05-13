@@ -691,9 +691,10 @@ void MainWindow::on_tableView_equipos_doubleClicked(const QModelIndex &index)
 
 void MainWindow::on_pushButton_2_clicked()
 {
+    QString fileName = QFileDialog::getExistingDirectory(this,"Carpeta para salvar estructura");
     for(int i=0;i<lista_equipos.size();i++)
     {
-    quint8 err=db.guardar_equipo(lista_equipos.at(i));
+    quint8 err=db.guardar_equipo(lista_equipos.at(i),fileName);
     if(err==0)
     {
         QMessageBox::critical(this, tr("FUTBOL RELOAD"),
