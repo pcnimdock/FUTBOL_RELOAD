@@ -1,0 +1,31 @@
+<RCC>
+    <qresource prefix="/img">
+        <file>img/recuadro_info_equipo_seleccionado.png</file>
+        <file>img/dataempty.bmp</file>
+        <file>img/logo.png</file>
+    </qresource>
+    <qresource prefix="/demarcaciones">
+        <file>img/demarcaciones/02Lateral Derecho.bmp</file>
+        <file>img/demarcaciones/03Lateral Izquierdo.bmp</file>
+        <file>img/demarcaciones/04Libero.bmp</file>
+        <file>img/demarcaciones/05Centro Izquierdo.bmp</file>
+        <file>img/demarcaciones/06Centro Derecho.bmp</file>
+        <file>img/demarcaciones/07CentroCampistaDerecho.bmp</file>
+        <file>img/demarcaciones/08InteriorDerecho.bmp</file>
+        <file>img/demarcaciones/09DelanteroCentro.bmp</file>
+        <file>img/demarcaciones/10MedioCentro.bmp</file>
+        <file>img/demarcaciones/11CentroCampistaIzq.bmp</file>
+        <file>img/demarcaciones/12ExtremoDerecho.bmp</file>
+        <file>img/demarcaciones/13MediaPuntaCentro.bmp</file>
+        <file>img/demarcaciones/14ExtremoIzq.bmp</file>
+        <file>img/demarcaciones/15OranizadorDefensivo.bmp</file>
+        <file>img/demarcaciones/16MediaPuntaDerecho.bmp</file>
+        <file>img/demarcaciones/17MediaPuntaIzq.bmp</file>
+        <file>img/demarcaciones/18InteriorIzquierdo.bmp</file>
+        <file>img/demarcaciones/01portero.bmp</file>
+        <file>img/demarcaciones/POS_DEL.png</file>
+        <file>img/demarcaciones/POS_DEF.png</file>
+        <file>img/demarcaciones/POS_POR.png</file>
+        <file>img/demarcaciones/POS_MED.png</file>
+    </qresource>
+</RCC>
