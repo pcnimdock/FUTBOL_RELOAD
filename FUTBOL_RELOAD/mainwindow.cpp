@@ -936,7 +936,7 @@ void MainWindow::on_lineEdit_2_textChanged(const QString &arg1)
 
     for(int i=0; i<lista_jugadores_totales.size(); i++)
     {
-        if(lista_jugadores_totales.at(i).NombreCorto.indexOf(arg1,Qt::CaseInsensitive)!=(-1))
+        if(lista_jugadores_totales.at(i).NombreCorto.indexOf(arg1,0,Qt::CaseInsensitive)!=(-1))
         {
            lista_busqueda_jugador.append(lista_jugadores_totales.at(i).NombreCorto);
            lista_busqueda_minifoto.append(lista_jugadores_totales.at(i).minifoto);
