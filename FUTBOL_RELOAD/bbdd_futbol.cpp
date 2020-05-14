@@ -1,12 +1,12 @@
 #include "bbdd_futbol.h"
-#include <QSqlQuery>
+//#include <QSqlQuery>
 #include <QFileDialog>
 
 
 BBDD_FUTBOL::BBDD_FUTBOL()
 {
-    sql=QSqlDatabase::addDatabase("QSQLITE");
-    sql.setDatabaseName("bbdd.db");
+   // sql=QSqlDatabase::addDatabase("QSQLITE");
+   // sql.setDatabaseName("bbdd.db");
 
 }
 
@@ -15,65 +15,62 @@ BBDD_FUTBOL::~BBDD_FUTBOL()
 
 }
 
-quint8 BBDD_FUTBOL::opendb()
-{
-    if(!sql.open())
-    {
-        return 1;
-    }
+//quint8 BBDD_FUTBOL::opendb()
+//{
+//    if(!sql.open())
+//    {
+//        return 1;
+//    }
 
-    QString query_string = "select * from EQUIPOS";
-    QSqlQuery query;
-    if(!query.exec(query_string))
-    {
-        //error al buscar tablas
-        //significa que la base de datos está vacía
+//    QString query_string = "select * from EQUIPOS";
+//    QSqlQuery query;
+//    if(!query.exec(query_string))
+//    {
+//        //error al buscar tablas
+//        //significa que la base de datos está vacía
 
-        //crea la estructura de base de datos
-        query_string="CREATE TABLE \"ENTRENADOR\" ( \"EquipoIdDBC\" INTEGER,"
-                     " \"Puntero\" INTEGER UNIQUE, \"NombreCorto\" TEXT,"
-                     " \"NombreLargo\" TEXT, \"Info\" TEXT, \"Declaraciones\" "
-                     "TEXT, \"minifoto\" BLOB, \"bigfoto\" BLOB )";
-        if(!query.exec(query_string))
-        {return 2;}
-        query_string="CREATE TABLE \"EQUIPO\" ( \"EquipoIdDBC\" INTEGER UNIQUE, "
-                     "\"byte1_know\" INTEGER, \"isBBDD_neg\" "
-                     "INTEGER, \"jugable\" INTEGER, \"NombreLargo\" TEXT, "
-                     "\"NombreCorto\" TEXT, \"NombreMayuculas\" TEXT,"
-                     " \"Bytes_unknow3_5bytes\" BLOB, \"anyo_fundacion\" INTEGER,"
-                     " \"estadio\" TEXT, \"aforo\" INTEGER, "
-                     "\"num_socios\" INTEGER, \"presidente\" TEXT, "
-                     "\"presupuesto_bbdd\" INTEGER, \"presupuesto_juego\" "
-                     "INTEGER, \"patrocinador\" TEXT, \"proveedor\" TEXT, "
-                     "\"nombre_corto_mayusculas\" TEXT, \"cosas_bbdd\" BLOB,"
-                     " \"bytes_2_array_de_10\" BLOB, \"miniesc\" BLOB,"
-                     " \"bigesc\" BLOB, \"esc_sim\" BLOB )";
-        if(!query.exec(query_string))
-        {return 2;}
-        query_string="CREATE TABLE \"JUGADOR\" ( \"EquipoIdDBC\" INTEGER,"
-                     " \"puntero\" INTEGER UNIQUE, \"NombreCorto\" TEXT, "
-                     "\"NombreLargo\" TEXT, \"NumeroCamiseta\" INTEGER, "
-                     "\"EstadoFichaje\" INTEGER, \"DemarcacionPref\" INTEGER,"
-                     " \"DemarcacionesSecundarias\" BLOB, \"Extranjero\" INTEGER, "
-                     "\"Piel\" INTEGER, \"Pelo\" INTEGER, \"PosicionEnCampo\" "
-                     "INTEGER, \"LugarDeNacimiento\" TEXT, \"FechaDeNacimiento\" "
-                     "INTEGER, \"EquipoProcedencia\" INTEGER, \"Internacional\" TEXT, "
-                     "\"Altura\" INTEGER, \"Peso\" INTEGER, \"Comentario\" TEXT, "
-                     "\"Precio\" INTEGER, \"Velocidad\" INTEGER, \"Regate\" INTEGER,"
-                     " \"Agilidad\" INTEGER, \"Agresividad\" INTEGER, \"ActTecnica\" INTEGER, "
-                     "\"ActRemate\" INTEGER, \"ActPase\" INTEGER, \"ActTiro\" INTEGER, "
-                     "\"minifoto\" BLOB, \"bigfoto\" BLOB )";
-        if(!query.exec(query_string))
-        {return 2;}
-        query_string="CREATE TABLE sqlite_sequence(name,seq)";
-        if(!query.exec(query_string))
-        {return 2;}
-
-    }
-
-
-    return 0;
-}
+//        //crea la estructura de base de datos
+//        query_string="CREATE TABLE \"ENTRENADOR\" ( \"EquipoIdDBC\" INTEGER,"
+//                     " \"Puntero\" INTEGER UNIQUE, \"NombreCorto\" TEXT,"
+//                     " \"NombreLargo\" TEXT, \"Info\" TEXT, \"Declaraciones\" "
+//                     "TEXT, \"minifoto\" BLOB, \"bigfoto\" BLOB )";
+//        if(!query.exec(query_string))
+//        {return 2;}
+//        query_string="CREATE TABLE \"EQUIPO\" ( \"EquipoIdDBC\" INTEGER UNIQUE, "
+//                     "\"byte1_know\" INTEGER, \"isBBDD_neg\" "
+//                     "INTEGER, \"jugable\" INTEGER, \"NombreLargo\" TEXT, "
+//                     "\"NombreCorto\" TEXT, \"NombreMayuculas\" TEXT,"
+//                     " \"Bytes_unknow3_5bytes\" BLOB, \"anyo_fundacion\" INTEGER,"
+//                     " \"estadio\" TEXT, \"aforo\" INTEGER, "
+//                     "\"num_socios\" INTEGER, \"presidente\" TEXT, "
+//                     "\"presupuesto_bbdd\" INTEGER, \"presupuesto_juego\" "
+//                     "INTEGER, \"patrocinador\" TEXT, \"proveedor\" TEXT, "
+//                     "\"nombre_corto_mayusculas\" TEXT, \"cosas_bbdd\" BLOB,"
+//                     " \"bytes_2_array_de_10\" BLOB, \"miniesc\" BLOB,"
+//                     " \"bigesc\" BLOB, \"esc_sim\" BLOB )";
+//        if(!query.exec(query_string))
+//        {return 2;}
+//        query_string="CREATE TABLE \"JUGADOR\" ( \"EquipoIdDBC\" INTEGER,"
+//                     " \"puntero\" INTEGER UNIQUE, \"NombreCorto\" TEXT, "
+//                     "\"NombreLargo\" TEXT, \"NumeroCamiseta\" INTEGER, "
+//                     "\"EstadoFichaje\" INTEGER, \"DemarcacionPref\" INTEGER,"
+//                     " \"DemarcacionesSecundarias\" BLOB, \"Extranjero\" INTEGER, "
+//                     "\"Piel\" INTEGER, \"Pelo\" INTEGER, \"PosicionEnCampo\" "
+//                     "INTEGER, \"LugarDeNacimiento\" TEXT, \"FechaDeNacimiento\" "
+//                     "INTEGER, \"EquipoProcedencia\" INTEGER, \"Internacional\" TEXT, "
+//                     "\"Altura\" INTEGER, \"Peso\" INTEGER, \"Comentario\" TEXT, "
+//                     "\"Precio\" INTEGER, \"Velocidad\" INTEGER, \"Regate\" INTEGER,"
+//                     " \"Agilidad\" INTEGER, \"Agresividad\" INTEGER, \"ActTecnica\" INTEGER, "
+//                     "\"ActRemate\" INTEGER, \"ActPase\" INTEGER, \"ActTiro\" INTEGER, "
+//                     "\"minifoto\" BLOB, \"bigfoto\" BLOB )";
+//        if(!query.exec(query_string))
+//        {return 2;}
+//        query_string="CREATE TABLE sqlite_sequence(name,seq)";
+//        if(!query.exec(query_string))
+//        {return 2;}
+//    }
+//return 0;
+//}
 
 const quint8 caracteres[48]={
     0xC7 ,0xFC ,0xE9 ,0xE2 ,0xE4 ,0xE0 ,0xE5 ,0xE7 ,0xEA ,0xEB ,

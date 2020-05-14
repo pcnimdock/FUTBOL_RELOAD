@@ -67,9 +67,14 @@ private:
     QList <EQUIPO> lista_equipos;
     QButtonGroup  EqButtonGroup;
     ESTRELLAS_MUNDIALES estrellas;
+    QList <quint16> punteros;
 
     QStandardItemModel *model;
     QStandardItemModel *model2;
+
+    int procesar_datos_equipo(EQUIPO *eq,QByteArray datos,quint32 *pos_memoria);
+    int procesar_datos_entrenador(ENTRENADOR *ent,QByteArray datos,quint32 *pos_memoria);
+    int procesar_datos_jugador(JUGADOR *jug,QByteArray datos,quint32 *pos_memoria);
 
 };
 #endif // MAINWINDOW_H

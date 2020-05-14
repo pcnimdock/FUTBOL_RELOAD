@@ -432,7 +432,7 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
            </sizepolicy>
           </property>
           <property name="text">
-           <string>Ruta DBDAT</string>
+           <string>Ruta FUTBOL4</string>
           </property>
          </widget>
         </item>
