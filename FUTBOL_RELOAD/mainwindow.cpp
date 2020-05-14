@@ -431,17 +431,17 @@ void MainWindow::on_btn_procesar_clicked()
 
     }
 
-    //mostrar todos los jugadores con su equipo en el tableviewjugadores
-
-    delete model;
-    delete model2;
-
     punteros.clear();
     for(int i=0; i<lista_jugadores_totales.size();i++)
     {
         punteros.append(lista_jugadores_totales.at(i).puntero);
     }
     qSort(punteros.begin(),punteros.end());
+
+    //mostrar todos los jugadores con su equipo en el tableviewjugadores
+
+    delete model;
+    delete model2;
 
     model = new QStandardItemModel(lista_jugadores_totales.size(),3,this);
     model2 = new QStandardItemModel(lista_equipos.size(),1,this);
@@ -498,6 +498,8 @@ void MainWindow::on_btn_procesar_clicked()
                                          "QTableCornerButton::section { background-color:#232326; }"
                                          "QHeaderView::section { color:white; background-color:#a2d324; }"
                                          "QTableView {background:white;}");
+
+    ui->pushButton_2->setEnabled(true);
 
 }
 
@@ -575,6 +577,10 @@ void MainWindow::on_tableView_equipos_doubleClicked(const QModelIndex &index)
     DialogEquipos dialog_equipo;
     dialog_equipo.setModal(true);
     //identificar qué equipo es
+    for(int i=0;i<lista_equipos.size();i++)
+    {
+
+    }
     int num_eq=index.row();
     if(num_eq<lista_equipos.size())
     {
@@ -619,35 +625,60 @@ void MainWindow::on_pushButton_2_clicked()
 
 void MainWindow::on_tableView_jugadores_doubleClicked(const QModelIndex &index)
 {
-    //sacar el jugador seleccionado con doble click
-    int num_jugador=index.row();
-    //buscar el equipo según el index
-    int temp=0;
-    int temp2=0;
-    int equipo=0;
-    while(temp<=num_jugador)
-    {
-        if(equipo>0)
-        {
-            temp2+=lista_equipos.at(equipo-1).lista_jugadores.size();
-        }
-        temp+=lista_equipos.at(equipo).lista_jugadores.size();
-        equipo++;
+    QString nombre_equipo;
+    QString nombre_jugador;
+    JUGADOR jug;
 
+    if (index.isValid()) {
+        int row = index.row();
+        QModelIndex ind = model->index(row,2,QModelIndex());
+        nombre_equipo = model->data(ind).toString();
+        ind = model->index(row,1,QModelIndex());
+        nombre_jugador = model->data(ind).toString();
+    }
+    else
+    {
+        return;
+    }
+    //buscar el equipo en la lista de equipos
+    quint16 num_eq;
+
+    for(num_eq=0;num_eq<lista_equipos.size();num_eq++)
+    {
+        if(lista_equipos.at(num_eq).NombreCorto.indexOf(nombre_equipo,0,Qt::CaseSensitive)==0)
+        {
+            break;
+        }
+    }
+    if(num_eq>=lista_equipos.size())
+    {
+        return;
     }
 
-    equipo--;
-    //buscar el jugador
-    num_jugador=num_jugador-temp2; //esto es el número de jugador en el equipo
-
+    //buscar el jugador en el equipo
+    quint16 num_jugador=0;
+    quint16 num_jugadores_en_equipo=lista_equipos.at(num_eq).lista_jugadores.size();
+    QString nombre_jug_temp;
+    for(num_jugador=0;num_jugador<num_jugadores_en_equipo;num_jugador++)
+    {
+        nombre_jug_temp=lista_equipos.at(num_eq).lista_jugadores.at(num_jugador).NombreCorto;
+        if(nombre_jug_temp.indexOf(nombre_jugador,0,Qt::CaseSensitive)==0)
+        {
+            jug=lista_equipos.at(num_eq).lista_jugadores.at(num_jugador);
+            break;
+        }
+    }
+    if(jug.NombreCorto.isEmpty())
+    {
+        return;
+    }
     Dialog_jugador dialog_jug;
-    JUGADOR jug;
-    jug=lista_equipos.at(equipo).lista_jugadores.at(num_jugador);
+
     dialog_jug.set_jugador(jug);
     if(QDialog::Accepted==dialog_jug.exec())
     {
         jug =dialog_jug.get_jugador();
-        lista_equipos[equipo].lista_jugadores[num_jugador]=jug;
+        lista_equipos[num_eq].lista_jugadores[num_jugador]=jug;
     }
     else
     {
@@ -888,4 +919,68 @@ int MainWindow::procesar_datos_equipo(EQUIPO *eq, QByteArray arch,quint32 *pos)
     *eq=equipo;
     *pos=pos_memoria;
     return 0;
+}
+
+void MainWindow::on_lineEdit_textChanged(const QString &arg1)
+{
+    ui->btn_procesar->setEnabled(true);
+}
+
+void MainWindow::on_lineEdit_2_textChanged(const QString &arg1)
+{
+    //linedit de busqueda de jugador
+   QList <quint32> IdBC;
+    lista_busqueda_jugador.clear();
+    lista_busqueda_equipo.clear();
+    lista_busqueda_minifoto.clear();
+
+    for(int i=0; i<lista_jugadores_totales.size(); i++)
+    {
+        if(lista_jugadores_totales.at(i).NombreCorto.indexOf(arg1,Qt::CaseInsensitive)!=(-1))
+        {
+           lista_busqueda_jugador.append(lista_jugadores_totales.at(i).NombreCorto);
+           lista_busqueda_minifoto.append(lista_jugadores_totales.at(i).minifoto);
+           IdBC.append(lista_jugadores_totales.at(i).EquipoIdDBC);
+        }
+    }
+
+    //settear model con nueva lista
+    delete model;
+
+    model = new QStandardItemModel(lista_busqueda_jugador.size(),3,this);
+
+
+    for(int i=0;i<lista_busqueda_jugador.size();i++)
+    {
+        QModelIndex index = model->index(i,1,QModelIndex());
+        model->setData(index,lista_busqueda_jugador.at(i));
+
+        if(lista_busqueda_minifoto.at(i).isEmpty()==false)
+        {
+            QImage im = transf_minifoto.minifoto2QImage(lista_busqueda_minifoto.at(i));
+            index = model->index(i,0,QModelIndex());
+            QStandardItem *item = new QStandardItem();
+            item->setData(QVariant(QPixmap::fromImage(im)), Qt::DecorationRole);
+            model->setItem(i,0,item);
+
+        }
+        //buscar el equipo al que corresponde equipoiddbc
+        QString EqStr;
+        for(int k=0;k<(lista_equipos.size());k++)
+        {
+            if(lista_equipos.at(k).EquipoIdDBC==IdBC.at(i))
+            {
+                EqStr=lista_equipos.at(k).NombreCorto;
+                break;
+            }
+        }
+        index = model->index(i,2,QModelIndex());
+        model->setData(index,EqStr);
+
+    }
+    model->setHeaderData(0, Qt::Horizontal, tr("MiniFoto"), Qt::DisplayRole);
+    model->setHeaderData(1, Qt::Horizontal, tr("Nombre"), Qt::DisplayRole);
+    model->setHeaderData(2, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
+    ui->tableView_jugadores->setModel(model);
+
 }

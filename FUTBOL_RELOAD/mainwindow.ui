@@ -451,6 +451,9 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
         </item>
         <item>
          <widget class="QPushButton" name="btn_procesar">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
             <horstretch>40</horstretch>
@@ -464,6 +467,9 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
         </item>
         <item>
          <widget class="QPushButton" name="pushButton_2">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
             <horstretch>40</horstretch>

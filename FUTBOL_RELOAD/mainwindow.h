@@ -51,6 +51,10 @@ private slots:
 
     void on_tableView_jugadores_doubleClicked(const QModelIndex &index);
 
+    void on_lineEdit_textChanged(const QString &arg1);
+
+    void on_lineEdit_2_textChanged(const QString &arg1);
+
 private:
     Ui::MainWindow *ui;
     QStringList lista_archivos;
@@ -71,6 +75,10 @@ private:
 
     QStandardItemModel *model;
     QStandardItemModel *model2;
+
+     QStringList lista_busqueda_jugador;
+     QStringList lista_busqueda_equipo;
+     QList <QByteArray> lista_busqueda_minifoto;
 
     int procesar_datos_equipo(EQUIPO *eq,QByteArray datos,quint32 *pos_memoria);
     int procesar_datos_entrenador(ENTRENADOR *ent,QByteArray datos,quint32 *pos_memoria);
