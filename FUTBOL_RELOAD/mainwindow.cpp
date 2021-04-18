@@ -110,14 +110,20 @@ void MainWindow::on_btn_procesar_clicked()
 
     quint8 num_boton_eq=0;
     lista_equipos.clear();
-    if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
+    //if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
+    if(QString::compare(lista_archivos.last(),"EQ959902.DBC", Qt::CaseInsensitive)==0)
     {
-        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
+        //PCF4.5 Estrellas mundiales
+        //QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
+        //Apertura estrellas mundiales
+        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959902.DBC";
+
         QFile file_estrellas(file_path);
         if(!file_estrellas.open(QIODevice::ReadOnly))
         {
             QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                                  tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
+                                  //tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
+                                  tr("Error abriendo EQ959902.DBC\n")+eq_file_str,
                                   QMessageBox::Ok);
 
             return;
