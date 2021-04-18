@@ -446,6 +446,8 @@ QImage TRANSFORM_MINIFOTO::fotosim2QImage(QByteArray escudo_sim)
 
     qint8 fila_imagen,columna_imagen;
     qint8 recorrido;
+    if(escudo_sim.size()>(3.3*1024))
+    {
     for (recorrido=0;recorrido<4;recorrido++)
     {
         for(fila_imagen=0;fila_imagen<65;fila_imagen++)
@@ -460,7 +462,7 @@ QImage TRANSFORM_MINIFOTO::fotosim2QImage(QByteArray escudo_sim)
 
         }
     }
-
+   }
     QImage Imagen_return = *imagen;
     delete imagen;
 

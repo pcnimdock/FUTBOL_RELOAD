@@ -849,7 +849,22 @@ int MainWindow::procesar_datos_equipo(EQUIPO *eq, QByteArray arch,quint32 *pos)
     for(temp=0;temp<size_cad;temp++){equipo.nombre_corto_mayusculas.append(db.descodificar_caracter(arch.at(pos_memoria++)));}
 
     if(equipo.isBBDD_neg==0)
-    {for(temp=0;temp<306;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
+    {
+        if(equipo.EquipoIdDBC>959000)
+        {//pcfutbol apertura
+        for(temp=0;temp<253;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}
+        //la posición de memoria está después de "-17" en la parte de ¿estadisticas?
+        //buscar hasta que la decodificación no sea un caracter numeral ni un '-'
+        while(((db.descodificar_caracter(arch.at(pos_memoria))>='0')&&(db.descodificar_caracter(arch.at(pos_memoria))<='9'))
+              || (db.descodificar_caracter(arch.at(pos_memoria))==0x2D))
+            {
+            equipo.cosas_bbdd.append(arch.at(pos_memoria++));
+            }
+        for(temp=0;temp<59;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}
+        }
+        else
+        {for(temp=0;temp<306;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
+    }
     else
     {for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
 
