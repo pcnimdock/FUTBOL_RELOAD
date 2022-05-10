@@ -41,7 +41,10 @@ int DialogEquipos::set_equipo(EQUIPO ptr_eq)
     ui->btn_ESCUDO->setEQname("ESCUDO");
     ui->btn_ESCUDO_SIM->setEQname("ESCUDO_SIM");
     ui->btn_ESCUDO->setIconEQ(trans.miniesc2QImage(eq.miniesc));
+    if(eq.EquipoIdDBC!=959901)
+    {
     ui->btn_ESCUDO_SIM->setIconEQ(trans.fotosim2QImage(eq.esc_sim));
+    }
     boton_group.addButton(ui->btn_ESCUDO,0);
     boton_group.addButton(ui->btn_ESCUDO_SIM,1);
 

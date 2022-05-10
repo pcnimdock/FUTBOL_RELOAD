@@ -90,7 +90,9 @@ QChar BBDD_FUTBOL::descodificar_caracter(quint8 val)
         else
         {val=0x20;}
     }
-    return(QChar::fromLatin1(val));
+
+    QChar letra=QChar::fromLatin1(val);
+    return(letra);
 }
 
 quint8 BBDD_FUTBOL::codificar_caracter(QChar val)
@@ -208,8 +210,9 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq,QString main_path)
     QByteArray DBC;
     DBC.clear();
     DBC.append(eq.cabecera);
-    DBC.append(eq.isBBDD_neg);
-    DBC.append(eq.jugable);
+    //DBC.append(eq.isBBDD_neg);
+    //DBC.append(eq.jugable);
+    DBC.append(eq.pais);
     DBC.append(eq.NombreLargo.size());
     for(int i=0;i<eq.NombreLargo.size();i++)
         DBC.append(codificar_caracter(eq.NombreLargo.at(i)));
