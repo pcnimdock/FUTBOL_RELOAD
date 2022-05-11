@@ -736,6 +736,9 @@ void MainWindow::on_pushButton_2_clicked()
                                   QMessageBox::Ok);
         }
     }
+
+    //guardar estrellas mundiales
+    err=db.guardar_estrellas(estrellas,fileName);
         QMessageBox::information(this, tr("FUTBOL RELOAD"),
                               tr("GUARDADO\n"
                                  "CAMBIOS"),
@@ -1100,6 +1103,12 @@ void MainWindow::on_pushButton_estrellas_clicked()
   if(QDialog::Accepted==dialog_estrellas.exec())
   {
       eq =dialog_estrellas.get_equipo();
+      estrellas.list_jugador=eq.lista_jugadores;
+      /*
+            eq =dialog_equipo.get_equipo();
+            lista_equipos[num_eq]=eq;
+      */
+
 
   }
 

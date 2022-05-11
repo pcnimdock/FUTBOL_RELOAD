@@ -27,7 +27,7 @@ void ESTRELLAS_MUNDIALES::guardar_datos_de_archivo(QByteArray datos)
     }
 
     for(int i=0;i<43;i++)
-    {estrellas_mundiales.bytes2_array_de_10.append(pos++);} //se guarda aquí por guardalo en algún lado
+    {estrellas_mundiales.bytes2_array_de_10.append(datos.at(pos++));} //se guarda aquí por guardalo en algún lado
 
     size_cad=datos.at(pos++);
     for(int i=0;i<size_cad;i++)
@@ -73,11 +73,11 @@ void ESTRELLAS_MUNDIALES::guardar_datos_de_archivo(QByteArray datos)
         jugador.Pelo=datos.at(pos++);
         jugador.PosicionEnCampo=datos.at(pos++); //0 portero, 1 defensor, 2 volante, 3 delantero
         size_cad=datos.at(pos++);
-        for(int temp=0;temp<5;temp++){jugador.LugarDeNacimiento.append(transform.descodificar_caracter(datos.at(pos++)));} //aquí pone "Nac"
+        for(int temp=0;temp<size_cad;temp++){jugador.LugarDeNacimiento.append(transform.descodificar_caracter(datos.at(pos++)));} //aquí pone "Nac"
 
         jugador.FechaDeNacimiento.append(datos.at(pos++)); //DIA (0)
-  //      jugador.FechaDeNacimiento.append(datos.at(pos++)); //MES (0)
-  //      jugador.FechaDeNacimiento.append(datos.at(pos++)); //AÑO (0)
+        jugador.FechaDeNacimiento.append(datos.at(pos++)); //MES (0)
+        jugador.FechaDeNacimiento.append(datos.at(pos++)); //AÑO (0)
 
         size_cad=datos.at(pos++);
         for(int i=0;i<size_cad;i++)

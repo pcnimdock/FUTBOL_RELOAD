@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>878</width>
-    <height>466</height>
+    <height>487</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -484,7 +484,13 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
         <item>
          <widget class="QPushButton" name="pushButton_estrellas">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>40</horstretch>
+            <verstretch>40</verstretch>
+           </sizepolicy>
           </property>
           <property name="text">
            <string>Estrellas Mundiales</string>

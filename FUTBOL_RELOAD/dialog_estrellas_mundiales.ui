@@ -26,7 +26,66 @@
     <set>QAbstractItemView::NoEditTriggers</set>
    </property>
   </widget>
+  <widget class="QPushButton" name="btn_volver">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>283</y>
+     <width>125</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Volver</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_guardar">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>220</y>
+     <width>125</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Guardar</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>btn_volver</sender>
+   <signal>clicked()</signal>
+   <receiver>dialog_estrellas_mundiales</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>552</x>
+     <y>295</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>319</x>
+     <y>239</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btn_guardar</sender>
+   <signal>clicked()</signal>
+   <receiver>dialog_estrellas_mundiales</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>552</x>
+     <y>232</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>319</x>
+     <y>239</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
