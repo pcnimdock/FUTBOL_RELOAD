@@ -131,6 +131,7 @@ void MainWindow::on_btn_procesar_clicked()
         QByteArray datos;
         datos=file_estrellas.readAll();
         file_estrellas.close();
+        estrellas.ruta_pcf=ui->lineEdit->text();
         estrellas.guardar_datos_de_archivo(datos);
         lista_archivos.removeLast();
     }
@@ -335,6 +336,10 @@ void MainWindow::on_btn_procesar_clicked()
                     temp3++;
                 }
             }
+            else
+            {
+                pos_memoria++;
+            }
 
             //EXTRAS ---------------
             //pcfutbol/FUTBOL45/DBDAT/MINIENTR/
@@ -359,18 +364,16 @@ void MainWindow::on_btn_procesar_clicked()
             //Almacenar al entrenador en memoria
             lista_entrenadores.append(entrenador);
             //comprobar si el siguiente es un entrenador o un jugador
-            if(entrenador.EquipoIdDBC==950006)
+            if(equipo.EquipoIdDBC==950502)
             {
-                pos_memoria++;
-            }
-            if(entrenador.EquipoIdDBC==950209)
-            {
-                entrenador.EquipoIdDBC=950209;
+                entrenador.EquipoIdDBC=950502;
             }
 
             if(arch.at(pos_memoria++)!=2)
             {
-                isEntrenador=0;
+
+               isEntrenador=0;
+
             }
             //FIN BUCLE BUSQUEDA ENTRENADORES
         }
@@ -389,20 +392,8 @@ void MainWindow::on_btn_procesar_clicked()
         else
         {
             //no tiene base de datos
-            if(equipo.EquipoIdDBC==950006)
-            {
-                if(arch.at(pos_memoria-1)!=(1))
-                {
-                    QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                                          tr("Error al leer el archivo sin base de datos\n"
-                                             "Se esperaba un 0x01 de jugador"),
-                                          QMessageBox::Ok);
-                    return;
-                }
-            }
-            else
-            {
-            if(arch.at(pos_memoria)!=(1))
+
+            if(arch.at(pos_memoria-1)!=(1))
             {
                 QMessageBox::critical(this, tr("FUTBOL RELOAD"),
                                       tr("Error al leer el archivo sin base de datos\n"
@@ -410,11 +401,15 @@ void MainWindow::on_btn_procesar_clicked()
                                       QMessageBox::Ok);
                 return;
             }
-            pos_memoria++;
-            }
+            //pos_memoria++;
+
         }
 
         quint8 isJugador=1;
+       // if(equipo.EquipoIdDBC==950405)
+       // {pos_memoria--;}
+       // if(equipo.EquipoIdDBC==950502)
+       // {pos_memoria--;}
         while(isJugador)
         {
             jugador.clear();
@@ -1020,7 +1015,8 @@ int MainWindow::procesar_datos_equipo(EQUIPO *eq, QByteArray arch,quint32 *pos)
         }
     }
     else
-    {for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
+    //{for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
+     {for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
 
 
     *eq=equipo;
@@ -1089,5 +1085,22 @@ void MainWindow::on_lineEdit_2_textChanged(const QString &arg1)
     model->setHeaderData(1, Qt::Horizontal, tr("Nombre"), Qt::DisplayRole);
     model->setHeaderData(2, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
     ui->tableView_jugadores->setModel(model);
+
+}
+
+void MainWindow::on_pushButton_estrellas_clicked()
+{
+  dialog_estrellas_mundiales dialog_estrellas;
+
+  dialog_estrellas.setModal(true);
+  //identificar qué equipo es
+  EQUIPO eq;
+  eq.lista_jugadores=estrellas.list_jugador;
+  dialog_estrellas.set_equipo(eq);
+  if(QDialog::Accepted==dialog_estrellas.exec())
+  {
+      eq =dialog_estrellas.get_equipo();
+
+  }
 
 }

@@ -18,6 +18,7 @@
 #include <QStandardItemModel>
 #include <dialogequipos.h>
 #include <dialog_jugador.h>
+#include <dialog_estrellas_mundiales.h>
 
 
 
@@ -54,6 +55,8 @@ private slots:
     void on_lineEdit_textChanged(const QString &arg1);
 
     void on_lineEdit_2_textChanged(const QString &arg1);
+
+    void on_pushButton_estrellas_clicked();
 
 private:
     Ui::MainWindow *ui;

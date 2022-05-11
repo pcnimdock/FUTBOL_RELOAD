@@ -18,6 +18,7 @@ public:
     TRANSFORM_MINIFOTO transform;
     void clear();
     void guardar_datos_de_archivo(QByteArray datos);
+    QString ruta_pcf;
 
 
 };

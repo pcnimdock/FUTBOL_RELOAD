@@ -482,6 +482,16 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="pushButton_estrellas">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Estrellas Mundiales</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="boton_salir">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">

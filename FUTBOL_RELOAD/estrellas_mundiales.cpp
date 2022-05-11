@@ -110,10 +110,20 @@ void ESTRELLAS_MUNDIALES::guardar_datos_de_archivo(QByteArray datos)
         jugador.ActRemate=datos.at(pos++);
         jugador.ActPase=datos.at(pos++);
         jugador.ActTiro=datos.at(pos++);
+
+        QString path_minifoto=ruta_pcf +  QString("/DBDAT/MINIFOTO/J95%1.DFG").arg(QString::number(jugador.puntero),5,QChar('0'));
+
+        QFile minifoto(path_minifoto);
+        if(minifoto.open(QIODevice::ReadOnly))
+        {
+            jugador.minifoto=minifoto.readAll();
+        }
+
         pos++; //aquí debe haber un 0x00
         if(datos.at(pos++)==0)
         {isJugador=0;}
         list_jugador.append(jugador);
+        jugador.clear();
 
     //FIN repaso jugador
     }
