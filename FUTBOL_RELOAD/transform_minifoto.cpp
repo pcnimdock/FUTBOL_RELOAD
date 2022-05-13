@@ -421,6 +421,7 @@ QImage TRANSFORM_MINIFOTO::fotosim2QImage(QByteArray escudo_sim)
     quint8 data;
     quint32 pos=0;
     cabecera_escudo_sim.clear();
+
     for(i=0;i<0x18;i++)
     {
         cabecera_escudo_sim.append(escudo_sim.at(i)); //in>>data;//mandar a la basura los bytes
@@ -437,6 +438,19 @@ QImage TRANSFORM_MINIFOTO::fotosim2QImage(QByteArray escudo_sim)
     }
     qint16 ancho=52; //pixels ancho MINIESC
     qint16 alto=65; //pixels alto de una MINIESC
+
+    if(escudo_sim.size()>1500)
+    {
+        ancho=52; //pixels ancho MINIESC
+        alto=65; //pixels alto de una MINIESC
+
+    }
+    else
+    {
+        ancho=32; //pixels ancho MINIESC
+        alto=45; //pixels alto de una MINIESC
+
+    }
     //crear imagen vacia en formato de 8bits
     QImage  *imagen= new QImage(ancho,alto,QImage::Format_Indexed8);
 
@@ -446,23 +460,41 @@ QImage TRANSFORM_MINIFOTO::fotosim2QImage(QByteArray escudo_sim)
 
     qint8 fila_imagen,columna_imagen;
     qint8 recorrido;
-    if(escudo_sim.size()>(3.3*1024))
+    if(escudo_sim.size()>(1500))
     {
-    for (recorrido=0;recorrido<4;recorrido++)
-    {
-        for(fila_imagen=0;fila_imagen<65;fila_imagen++)
+        for (recorrido=0;recorrido<4;recorrido++)
         {
-            columna_imagen=recorrido;
-            while(columna_imagen<52)
+            for(fila_imagen=0;fila_imagen<65;fila_imagen++)
             {
-                data=escudo_sim.at(pos++);
-                imagen->setPixel(columna_imagen,fila_imagen,((uint)data));
-                columna_imagen=columna_imagen+4;
-            }
+                columna_imagen=recorrido;
+                while(columna_imagen<52)
+                {
+                    data=escudo_sim.at(pos++);
+                    imagen->setPixel(columna_imagen,fila_imagen,((uint)data));
+                    columna_imagen=columna_imagen+4;
+                }
 
+            }
         }
     }
-   }
+    else
+    {
+        for (recorrido=0;recorrido<4;recorrido++)
+        {
+            for(fila_imagen=0;fila_imagen<45;fila_imagen++)
+            {
+                columna_imagen=recorrido;
+                while(columna_imagen<32)
+                {
+                    data=escudo_sim.at(pos++);
+                    imagen->setPixel(columna_imagen,fila_imagen,((uint)data));
+                    columna_imagen=columna_imagen+4;
+                }
+
+            }
+        }
+
+    }
     QImage Imagen_return = *imagen;
     delete imagen;
 
@@ -475,13 +507,25 @@ QByteArray TRANSFORM_MINIFOTO::devolver_fotosim_reemplazo(QImage escudo_sim)
     QByteArray dfg;
     qint16 ancho=52;
     qint16 alto=65;
+
+    if(escudo_sim.size().width()==64)
+    {
+        ancho=32;
+        alto=45;
+    }
     qint8 fila_imagen,columna_imagen;
     qint8 recorrido;
 
     QImage *imagen2=new QImage();
     *imagen2=escudo_sim;
+    if(escudo_sim.size().width()==64)
+    {
+        *imagen2=imagen2->scaled(32,45,Qt::IgnoreAspectRatio);
+    }
+    else
+    {
     *imagen2=imagen2->scaled(52,65,Qt::IgnoreAspectRatio);
-
+    }
     colors.clear();
     qint32 color_r,color_g,color_b;
     for (int i=0;i<256;i++)
@@ -497,6 +541,9 @@ QByteArray TRANSFORM_MINIFOTO::devolver_fotosim_reemplazo(QImage escudo_sim)
     dfg.append(cabecera_escudo_sim);
 
     //escribir índices en el archivo
+
+    if(escudo_sim.size().width()!=64)
+    {
     for (recorrido=0;recorrido<4;recorrido++)
     {
         for(fila_imagen=0;fila_imagen<alto;fila_imagen++)
@@ -508,6 +555,23 @@ QByteArray TRANSFORM_MINIFOTO::devolver_fotosim_reemplazo(QImage escudo_sim)
                 columna_imagen=columna_imagen+4;
             }
 
+        }
+    }
+    }
+    else
+    {
+        for (recorrido=0;recorrido<4;recorrido++)
+        {
+            for(fila_imagen=0;fila_imagen<45;fila_imagen++) //alto en pixels
+            {
+                columna_imagen=recorrido;
+                while(columna_imagen<32)//ancho en pixels
+                {
+                    dfg.append(((qint8)imagen3.pixelIndex(columna_imagen,fila_imagen)));
+                    columna_imagen=columna_imagen+4;
+                }
+
+            }
         }
     }
 
@@ -758,10 +822,10 @@ QByteArray TRANSFORM_MINIFOTO::devolver_foto_bigfoto(QImage im)
 
             for (int i=0;i<16;i++)
             {
-               QColor color=QColor(colors_bigfoto.at(i));
-               cabecera_bigfoto.append(color.red());
-               cabecera_bigfoto.append(color.green());
-               cabecera_bigfoto.append(color.blue());
+                QColor color=QColor(colors_bigfoto.at(i));
+                cabecera_bigfoto.append(color.red());
+                cabecera_bigfoto.append(color.green());
+                cabecera_bigfoto.append(color.blue());
             }
             for(int i=0; i<8;i++)
             {

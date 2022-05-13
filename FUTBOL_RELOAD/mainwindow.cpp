@@ -135,7 +135,30 @@ void MainWindow::on_btn_procesar_clicked()
         estrellas.guardar_datos_de_archivo(datos);
         lista_archivos.removeLast();
     }
+    if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
+    {
+        //PCF4.5 Estrellas mundiales
+        //QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
+        //Apertura estrellas mundiales
+        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
 
+        QFile file_estrellas(file_path);
+        if(!file_estrellas.open(QIODevice::ReadOnly))
+        {
+            QMessageBox::critical(this, tr("FUTBOL RELOAD"),
+                                  //tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
+                                  tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
+                                  QMessageBox::Ok);
+
+            return;
+        }
+        QByteArray datos;
+        datos=file_estrellas.readAll();
+        file_estrellas.close();
+        estrellas.ruta_pcf=ui->lineEdit->text();
+        estrellas.guardar_datos_de_archivo(datos);
+        lista_archivos.removeLast();
+    }
     //añadido debug
     QString texto_comparacion;
     texto_comparacion.clear();

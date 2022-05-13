@@ -40,6 +40,19 @@ void mybutton::setIconEQ(QImage im)
     setIconSize(QSize(48*2,64*2));
 }
 
+void mybutton::setIconEQ_italiano(QImage im)
+{
+
+      im = im.convertToFormat(QImage::Format_ARGB32);
+      im= im.scaled(32*2,45*2);
+      Image_raw=im;
+      EQimage = im;
+      EQimage_MouseOver = setOpacity(im, 0.5);
+      setIcon(QIcon(QPixmap::fromImage(im)));
+      setIconSize(QSize(32*2,45*2));
+
+}
+
 void mybutton::setIconMinifoto(QImage im)
 {
     Image_raw = im;
