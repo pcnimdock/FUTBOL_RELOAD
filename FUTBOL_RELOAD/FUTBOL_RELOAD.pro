@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     bbdd_futbol.cpp \
+    dialog_estrellas_mundiales.cpp \
     dialog_jugador.cpp \
     dialogequipos.cpp \
     entrenador.cpp \
@@ -31,6 +32,7 @@ SOURCES += \
 
 HEADERS += \
     bbdd_futbol.h \
+    dialog_estrellas_mundiales.h \
     dialog_jugador.h \
     dialogequipos.h \
     entrenador.h \
@@ -44,6 +46,7 @@ HEADERS += \
     mybutton.h
 
 FORMS += \
+    dialog_estrellas_mundiales.ui \
     dialog_jugador.ui \
     dialogequipos.ui \
     mainwindow.ui
@@ -55,3 +58,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     resource.qrc
+
+TRANSLATIONS = hellotr_es.ts

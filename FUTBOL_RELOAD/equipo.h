@@ -13,6 +13,10 @@ public:
     EQUIPO();
     quint32 EquipoIdDBC;
     QByteArray cabecera;
+    //QByteArray copyright;
+    quint8 tipo_dbc;
+    quint8 pais;
+    QString pais_string;
     quint8 byte1_know;
     quint8 isBBDD_neg;
     quint8 jugable;
@@ -39,6 +43,7 @@ public:
     QList <ENTRENADOR> lista_entrenadores;
 
     void clear();
+    QString get_nacion(uint8_t dato);
 
 
 };

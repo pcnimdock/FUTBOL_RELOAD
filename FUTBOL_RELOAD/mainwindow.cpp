@@ -110,13 +110,43 @@ void MainWindow::on_btn_procesar_clicked()
 
     quint8 num_boton_eq=0;
     lista_equipos.clear();
-    if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
+    //if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
+    if(QString::compare(lista_archivos.last(),"EQ959901.DBC", Qt::CaseInsensitive)==0)
     {
-        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
+        //PCF4.5 Estrellas mundiales
+        //QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
+        //Apertura estrellas mundiales
+        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959901.DBC";
+
         QFile file_estrellas(file_path);
         if(!file_estrellas.open(QIODevice::ReadOnly))
         {
             QMessageBox::critical(this, tr("FUTBOL RELOAD"),
+                                  //tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
+                                  tr("Error abriendo EQ959901.DBC\n")+eq_file_str,
+                                  QMessageBox::Ok);
+
+            return;
+        }
+        QByteArray datos;
+        datos=file_estrellas.readAll();
+        file_estrellas.close();
+        estrellas.ruta_pcf=ui->lineEdit->text();
+        estrellas.guardar_datos_de_archivo(datos);
+        lista_archivos.removeLast();
+    }
+    if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
+    {
+        //PCF4.5 Estrellas mundiales
+        //QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
+        //Apertura estrellas mundiales
+        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
+
+        QFile file_estrellas(file_path);
+        if(!file_estrellas.open(QIODevice::ReadOnly))
+        {
+            QMessageBox::critical(this, tr("FUTBOL RELOAD"),
+                                  //tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
                                   tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
                                   QMessageBox::Ok);
 
@@ -125,9 +155,95 @@ void MainWindow::on_btn_procesar_clicked()
         QByteArray datos;
         datos=file_estrellas.readAll();
         file_estrellas.close();
+        estrellas.ruta_pcf=ui->lineEdit->text();
         estrellas.guardar_datos_de_archivo(datos);
         lista_archivos.removeLast();
     }
+    //añadido debug
+    QString texto_comparacion;
+    texto_comparacion.clear();
+    foreach(eq_file_str,lista_archivos)
+    {
+        QString file_path;
+        quint32 num_eq;
+        QString num_str=eq_file_str;
+        num_str=num_str.remove(8,4).remove(0,2);;
+        num_eq=num_str.toLong();
+
+        file_path = ui->lineEdit->text() + +"/DBDAT/" + eq_file_str;
+        file = new QFile(file_path);
+        if(!file->open(QIODevice::ReadOnly))
+        {
+
+            QMessageBox::critical(this, tr("FUTBOL RELOAD"),
+                                  tr("Error abriendo archivo\n")+eq_file_str,
+                                  QMessageBox::Ok);
+            delete file;
+            return;
+        }
+        texto_comparacion.append(eq_file_str);
+        texto_comparacion.append(";");
+
+        //se ha abierto el archivo
+        //procesar
+        QByteArray arch;
+
+        arch = file->readAll();
+        QString hex;
+        hex.setNum(arch.at(0x25),16);
+        texto_comparacion.append(hex);
+        texto_comparacion.append(";");
+        hex.clear();
+        hex.setNum(arch.at(0x2A),16);
+        texto_comparacion.append(hex);
+        texto_comparacion.append(";");
+        hex.clear();
+        hex.setNum(arch.at(0x2B),16);
+        texto_comparacion.append(hex);
+        texto_comparacion.append(";");
+        //añadir nombre de equipo
+        QByteArray nombre_eq;
+        nombre_eq.clear();
+        uint16_t temp=0;
+        uint16_t temp2;
+        uint16_t pos=0x2D;
+
+        temp2=arch.at(0x2C);
+        QChar n;
+        while(temp<temp2)
+        {
+            n=db.descodificar_caracter(arch.at(pos));
+            nombre_eq.append(n);
+            pos++;
+            temp++;
+        }
+        texto_comparacion.append(nombre_eq);
+        texto_comparacion.append(";");
+        texto_comparacion.append("\r\n");
+
+
+        equipo.clear();
+        equipo.EquipoIdDBC=num_eq;
+
+        //grabar
+        QFile arch_dbc(QString("EQ%1.DBC").arg(QString::number(equipo.EquipoIdDBC),6,QChar('0')));
+        if(!arch_dbc.open(QIODevice::WriteOnly))
+        {
+            return; //no se ha podido abrir para escribir
+        }
+        arch_dbc.write(arch,0x2C);
+        arch_dbc.close();
+
+    }
+
+    QFile arch_comp(QString("arch_comp.csv"));
+    if(!arch_comp.open(QIODevice::WriteOnly))
+    {
+        return; //no se ha podido abrir para escribir
+    }
+    arch_comp.write(texto_comparacion.toUtf8());
+    arch_comp.close();
+
     foreach (eq_file_str, lista_archivos) {
         QString file_path;
         quint32 num_eq;
@@ -205,6 +321,11 @@ void MainWindow::on_btn_procesar_clicked()
             isEntrenador=0;
             pos_memoria=0x189;;
         }
+
+        if(equipo.EquipoIdDBC==950201)
+        {
+            equipo.EquipoIdDBC=950201;
+        }
         while(isEntrenador)
         {
 
@@ -238,6 +359,10 @@ void MainWindow::on_btn_procesar_clicked()
                     temp3++;
                 }
             }
+            else
+            {
+                pos_memoria++;
+            }
 
             //EXTRAS ---------------
             //pcfutbol/FUTBOL45/DBDAT/MINIENTR/
@@ -262,14 +387,22 @@ void MainWindow::on_btn_procesar_clicked()
             //Almacenar al entrenador en memoria
             lista_entrenadores.append(entrenador);
             //comprobar si el siguiente es un entrenador o un jugador
+            if(equipo.EquipoIdDBC==950502)
+            {
+                entrenador.EquipoIdDBC=950502;
+            }
+
             if(arch.at(pos_memoria++)!=2)
             {
-                isEntrenador=0;
+
+               isEntrenador=0;
+
             }
             //FIN BUCLE BUSQUEDA ENTRENADORES
         }
         if(equipo.isBBDD_neg==0)
         {
+            //tiene base de datos
             if(arch.at(pos_memoria-1)!=(1))
             {
                 QMessageBox::critical(this, tr("FUTBOL RELOAD"),
@@ -279,22 +412,32 @@ void MainWindow::on_btn_procesar_clicked()
                 return;
             }
         }
-        else if(arch.at(pos_memoria++)!=(1))
+        else
         {
+            //no tiene base de datos
 
-            QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                                  tr("Error al leer el archivo de segunda B\n"
-                                     "Se esperaba un 0x01 de jugador"),
-                                  QMessageBox::Ok);
-            return;
+            if(arch.at(pos_memoria-1)!=(1))
+            {
+                QMessageBox::critical(this, tr("FUTBOL RELOAD"),
+                                      tr("Error al leer el archivo sin base de datos\n"
+                                         "Se esperaba un 0x01 de jugador"),
+                                      QMessageBox::Ok);
+                return;
+            }
+            //pos_memoria++;
+
         }
 
         quint8 isJugador=1;
-
+       // if(equipo.EquipoIdDBC==950405)
+       // {pos_memoria--;}
+       // if(equipo.EquipoIdDBC==950502)
+       // {pos_memoria--;}
         while(isJugador)
         {
             jugador.clear();
             jugador.EquipoIdDBC=equipo.EquipoIdDBC;
+
             jugador.puntero=arch.at(pos_memoria++)&0xFF;
             jugador.puntero+=(arch.at(pos_memoria++)&0xFF)*256;
             size_cad=arch.at(pos_memoria++);
@@ -616,6 +759,9 @@ void MainWindow::on_pushButton_2_clicked()
                                   QMessageBox::Ok);
         }
     }
+
+    //guardar estrellas mundiales
+    err=db.guardar_estrellas(estrellas,fileName);
         QMessageBox::information(this, tr("FUTBOL RELOAD"),
                               tr("GUARDADO\n"
                                  "CAMBIOS"),
@@ -748,17 +894,19 @@ int MainWindow::procesar_datos_equipo(EQUIPO *eq, QByteArray arch,quint32 *pos)
     quint32 size_cad;
     EQUIPO equipo;
     equipo=*eq;
-    quint32 pos_memoria;
-    for(pos_memoria=0;pos_memoria<0x2A;pos_memoria++)
+    quint32 pos_memoria=0;
+    for(pos_memoria=0;pos_memoria<0x2B;pos_memoria++)
     {
         equipo.cabecera.append(arch.at(pos_memoria));
     }
-    //pos_memoria=36; //cadena de copyrigth y primer byte 0
-
-    //equipo.byte1_know=arch.at(0x25);
+    equipo.tipo_dbc=arch.at(0x25);
     equipo.isBBDD_neg=arch.at(0x2A);
-    if(equipo.EquipoIdDBC==959900){equipo.isBBDD_neg=1;}
-    equipo.jugable=arch.at(0x2B); //cuidado con las estrellas mundiales, sólo hay jugadores
+    equipo.pais=arch.at(0x2B);
+    equipo.pais_string=equipo.get_nacion(equipo.pais);
+
+    if(equipo.EquipoIdDBC==959901){equipo.isBBDD_neg=1;}
+    equipo.jugable=arch.at(0x2A); //cuidado con las estrellas mundiales, sólo hay jugadores
+
     size_cad=arch.at(0x2C);
     pos_memoria=0x2D;
 
@@ -848,74 +996,55 @@ int MainWindow::procesar_datos_equipo(EQUIPO *eq, QByteArray arch,quint32 *pos)
     size_cad=arch.at(pos_memoria++);
     for(temp=0;temp<size_cad;temp++){equipo.nombre_corto_mayusculas.append(db.descodificar_caracter(arch.at(pos_memoria++)));}
 
+    //leer las estadisticas
+    QByteArray buscar_offset;
+    quint32 offset;
+    buscar_offset.clear();
+    QChar letra;
+    uint8_t letra_utf;
+
+
     if(equipo.isBBDD_neg==0)
-    {for(temp=0;temp<306;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
-    else
-    {for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
-
-    //QFile file_debug_bbdd(QString("DBG/dbg%1").arg(QString::number(equipo.EquipoIdDBC)));
-    QFile file_debug_bbdd(QString("DBG/dbg_cab.bi1"));
-    //if(!file_debug_bbdd.open(QIODevice::WriteOnly))
-    if(!file_debug_bbdd.open(QIODevice::ReadWrite))
     {
-        //error
-    }
-    QByteArray temp2 = arch.mid(0x24,7);
-    quint8 zero=0;
-    temp2.append(zero);
-    file_debug_bbdd.readAll();
-    file_debug_bbdd.write(temp2); //cabecera
-   // file_debug_bbdd.write(equipo.cosas_bbdd);
-    //comparar archivos pequeños
-    if((!qbyte_ant.isEmpty())&&(QString::compare(equipo.nombre_corto_mayusculas,"SEGUNDA B",Qt::CaseSensitive)!=0))
-    {
-        if((qbyte_ant.size()==177)&&(equipo.cosas_bbdd.size()==177))
+        //buscar "-15-16"
+        for(temp=0;temp<500;temp++)
         {
-            //comparar con archivo anterior
-            QFile diff_dbg(QString("DBG/diffs.bin"));
-            if(!diff_dbg.open(QIODevice::ReadWrite))
-            {
-
-            }
-            QByteArray temp;
-            for(int i=0; i<equipo.cosas_bbdd.size();i++)
-            {
-                if(equipo.cosas_bbdd.at(i)==qbyte_ant.at(i))
-                {temp.append(equipo.cosas_bbdd.at(i));}
-                else
-                {temp.append(0xFF);}
-            }
-            QByteArray cosas_arch,reemplazar;
-            cosas_arch = diff_dbg.readAll();
-            if(!cosas_arch.isEmpty())
-            {
-                for(int i=0; i<temp.size();i++)
-                {
-                    if(temp.at(i)==cosas_arch.at(i))
-                    {reemplazar.append(cosas_arch.at(i));}
-                    else
-                    {reemplazar.append(0xFF);}
-                }
-            }
-            else
-            {
-                reemplazar=temp;
-            }
-            diff_dbg.seek(0);
-            //añadir cabecera
-
-            diff_dbg.write(reemplazar);
-            diff_dbg.close();
-
-
-
+            letra=db.descodificar_caracter(arch.at(pos_memoria+temp));
+            letra_utf=letra.toLatin1();
+         buscar_offset.append(letra_utf);
         }
 
+        if(equipo.EquipoIdDBC==950203)
+        {
+            equipo.EquipoIdDBC=950203;
+        }
+        if(buscar_offset.indexOf("-17")!=(-1))
+        {offset=buscar_offset.indexOf("-17");}
+
+        if(buscar_offset.indexOf("-18")!=(-1))
+        {offset=buscar_offset.indexOf("-18");}
+
+        if(buscar_offset.indexOf("-19")!=(-1))
+        {offset=buscar_offset.indexOf("-19");}
+        offset+=3;
+        offset+=47;
+//        offset+=3; //byte siguiente al último caracter
+//        offset+=45;//byte 0x02
+//        if(equipo.EquipoIdDBC>=950203)
+//        {
+//            offset+=2;
+//        }
+        //offset+=44;//byte 0x02
+        for(temp=0;temp<offset;temp++){
+            equipo.cosas_bbdd.append(arch.at(pos_memoria));
+            pos_memoria++;
+        }
     }
-    if(QString::compare(equipo.nombre_corto_mayusculas,"SEGUNDA B",Qt::CaseSensitive)!=0)
-    {
-        qbyte_ant=equipo.cosas_bbdd;
-    }
+    else
+    //{for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
+     {for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
+
+
     *eq=equipo;
     *pos=pos_memoria;
     return 0;
@@ -982,5 +1111,28 @@ void MainWindow::on_lineEdit_2_textChanged(const QString &arg1)
     model->setHeaderData(1, Qt::Horizontal, tr("Nombre"), Qt::DisplayRole);
     model->setHeaderData(2, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
     ui->tableView_jugadores->setModel(model);
+
+}
+
+void MainWindow::on_pushButton_estrellas_clicked()
+{
+  dialog_estrellas_mundiales dialog_estrellas;
+
+  dialog_estrellas.setModal(true);
+  //identificar qué equipo es
+  EQUIPO eq;
+  eq.lista_jugadores=estrellas.list_jugador;
+  dialog_estrellas.set_equipo(eq);
+  if(QDialog::Accepted==dialog_estrellas.exec())
+  {
+      eq =dialog_estrellas.get_equipo();
+      estrellas.list_jugador=eq.lista_jugadores;
+      /*
+            eq =dialog_equipo.get_equipo();
+            lista_equipos[num_eq]=eq;
+      */
+
+
+  }
 
 }

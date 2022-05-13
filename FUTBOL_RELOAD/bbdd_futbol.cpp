@@ -90,7 +90,9 @@ QChar BBDD_FUTBOL::descodificar_caracter(quint8 val)
         else
         {val=0x20;}
     }
-    return(QChar::fromLatin1(val));
+
+    QChar letra=QChar::fromLatin1(val);
+    return(letra);
 }
 
 quint8 BBDD_FUTBOL::codificar_caracter(QChar val)
@@ -208,8 +210,9 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq,QString main_path)
     QByteArray DBC;
     DBC.clear();
     DBC.append(eq.cabecera);
-    DBC.append(eq.isBBDD_neg);
-    DBC.append(eq.jugable);
+    //DBC.append(eq.isBBDD_neg);
+    //DBC.append(eq.jugable);
+    DBC.append(eq.pais);
     DBC.append(eq.NombreLargo.size());
     for(int i=0;i<eq.NombreLargo.size();i++)
         DBC.append(codificar_caracter(eq.NombreLargo.at(i)));
@@ -446,5 +449,213 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq,QString main_path)
             }
         }
     }
+    return 1;
+}
+
+quint8 BBDD_FUTBOL::guardar_estrellas(ESTRELLAS_MUNDIALES eq, QString main_path)
+{
+    //comprobar que existe directorio FUTBOL45_NEW
+    //comprobar que existe            DBDAT
+    //comprobar que existe            ESCUDOS
+    //comprobar que existe            DBDAT/MINIESC
+    //comprobar que existe            DBDAT/MINIFOTO
+    //comprobar que existe            DBDAT/MINIENTR
+
+
+
+    QDir dir;
+
+    if(!dir.exists(main_path+"/FUTBOL45_NEW"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/ESCUDOS"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/ESCUDOS");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/MINIESC"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/MINIESC");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/MINIFOTO"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/MINIFOTO");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/MINIENTR"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/MINIENTR");}
+    if(!dir.exists(main_path+"/FUTBOL45_NEW/DBDAT/BIGFOTO"))
+    {dir.mkdir(main_path+"/FUTBOL45_NEW/DBDAT/BIGFOTO");}
+
+    QByteArray DBC;
+    DBC.clear();
+
+    /*
+    quint32 pos=0;
+    int size_cad;
+    for(pos=0;pos<0x2C;pos++){
+        cabecera.append(datos.at(pos));}
+    estrellas_mundiales.EquipoIdDBC=datos.at(pos++)&0xFF;
+    estrellas_mundiales.EquipoIdDBC+=datos.at(pos++)*256;
+    */
+    DBC.append(eq.cabecera);
+    DBC.append(eq.estrellas_mundiales.EquipoIdDBC&0xFF);
+    DBC.append(eq.estrellas_mundiales.EquipoIdDBC/256);
+
+    /*
+
+    size_cad=datos.at(pos++);
+    for(int i=0;i<size_cad;i++)
+    {
+        estrellas_mundiales.NombreCorto.append(transform.descodificar_caracter(datos.at(pos++)));
+    }
+    */
+    uint8_t size_temp,temp;
+    size_temp=eq.estrellas_mundiales.NombreCorto.size();
+    DBC.append(size_temp);
+    for(temp=0;temp<size_temp;temp++)
+    {
+        DBC.append(codificar_caracter(eq.estrellas_mundiales.NombreCorto.at(temp)));
+    }
+
+    /*
+
+    for(int i=0;i<43;i++)
+    {estrellas_mundiales.bytes2_array_de_10.append(pos++);} //se guarda aquí por guardalo en algún lado
+*/
+    for(temp=0;temp<43;temp++)
+    {
+        DBC.append(eq.estrellas_mundiales.bytes2_array_de_10.at(temp));
+    }
+
+
+    /*
+    size_cad=datos.at(pos++);
+    for(int i=0;i<size_cad;i++)
+    {
+        estrellas_mundiales.nombre_corto_mayusculas.append(transform.descodificar_caracter(datos.at(pos++))); //en el archivo pone "SEGUNDA B", debe de tener alguna relación
+    }
+    */
+    size_temp=eq.estrellas_mundiales.nombre_corto_mayusculas.size();
+    DBC.append(size_temp);
+    for(temp=0;temp<size_temp;temp++)
+    {
+        DBC.append(codificar_caracter(eq.estrellas_mundiales.nombre_corto_mayusculas.at(temp)));
+    }
+
+    /*
+
+    for(int i=0;i<275;i++)
+    { //antes de llegar a bautista hay una zona que pone "Comentario" ¿alguna relación con algo?
+        estrellas_mundiales.cosas_bbdd.append(datos.at(pos++));
+    }
+*/
+    for(uint16_t i=0;i<275;i++)
+    {
+        DBC.append(eq.estrellas_mundiales.cosas_bbdd.at(i));
+    }
+
+    size_temp=eq.estrellas_mundiales.lista_jugadores.size(); //numero de jugadores
+    temp=0;
+    JUGADOR j;
+    uint16_t temp_j=0;
+    while(temp_j<eq.list_jugador.size())
+    {
+        j=eq.list_jugador.at(temp_j);
+        DBC.append(j.puntero&0xFF);
+        DBC.append(j.puntero/256);
+        //NombreCorto
+        DBC.append(j.NombreCorto.size());
+        temp=0;
+        while(temp<j.NombreCorto.size())
+        {DBC.append(codificar_caracter(j.NombreCorto.at(temp++)));}
+        //NombreLargo
+        temp=0;
+        DBC.append(j.NombreLargo.size());
+        while(temp<j.NombreLargo.size())
+        {DBC.append(codificar_caracter(j.NombreLargo.at(temp++)));}
+        //NumeroCamiseta
+        DBC.append(j.NumeroCamiseta);
+        //EstadoFichaje
+        DBC.append(j.EstadoFichaje);
+        //DemarcacionPref
+        DBC.append(j.DemarcacionPref);
+        temp=0;
+        while(temp<5)
+        {DBC.append(j.DemarcacionesSecundarias.at(temp++));}
+        DBC.append(j.NumeroCamiseta);
+        DBC.append('\0');
+        DBC.append(j.Extranjero);
+        DBC.append(j.Piel);
+        DBC.append(j.Pelo);
+        DBC.append(j.PosicionEnCampo);
+        DBC.append(QString2QBytePlusSize(j.LugarDeNacimiento));
+        DBC.append('\0'); //Fecha de nacimiento
+        DBC.append('\0');
+        DBC.append('\0');
+        DBC.append(j.EquipoProcedencia.size());
+        temp=0;
+        while(temp<j.EquipoProcedencia.size())
+        {
+            DBC.append(codificar_caracter(j.EquipoProcedencia.at(temp++)));
+        }
+        DBC.append(j.Internacional.size());
+        temp=0;
+        while(temp<j.Internacional.size())
+        {
+            DBC.append(codificar_caracter(j.Internacional.at(temp++)));
+        }
+        DBC.append(j.Altura);
+        DBC.append(j.Peso);
+        DBC.append('\0'); //Numero de cadenas
+        temp=0;
+        QString com="Comentario";
+        DBC.append(com.size());
+        while(temp<com.size())
+        {
+            DBC.append(codificar_caracter(com.at(temp++)));
+        }
+        DBC.append(j.Precio&0xFF);
+        DBC.append(j.Precio/256);
+        DBC.append(j.Velocidad);
+        DBC.append(j.Regate);
+        DBC.append(j.Agilidad);
+        DBC.append(j.Agresividad);
+        DBC.append(j.ActTecnica);
+        DBC.append(j.ActRemate);
+        DBC.append(j.ActPase);
+        DBC.append(j.ActTiro);
+        DBC.append('\0');
+        temp_j++;
+        if(temp_j<eq.list_jugador.size())
+        {
+        DBC.append('\1');
+        }
+        else
+        {
+            DBC.append('\0');
+        }
+
+        //guardar minifoto si existe
+
+    }
+
+    QFile arch_dbc(QString(main_path+"/FUTBOL45_NEW/DBDAT/EQ959901.DBC"));
+    if(!arch_dbc.open(QIODevice::WriteOnly))
+    {
+        return 0; //no se ha podido abrir para escribir
+    }
+    arch_dbc.write(DBC);
+    arch_dbc.close();
+
+    //grabar minifoto jugadores
+    for(int i=0;i<eq.list_jugador.size();i++)
+    {
+        if(!eq.list_jugador.at(i).minifoto.isEmpty())
+        {
+            arch_dbc.setFileName(QString(main_path+"/FUTBOL45_NEW/DBDAT/MINIFOTO/J95%1.DFG").arg(QString::number(eq.list_jugador.at(i).puntero),5,QChar('0')));
+            if(!arch_dbc.open(QIODevice::WriteOnly))
+            {
+                arch_dbc.close();
+                return 0; //no se ha podido abrir para escribir
+            }
+            arch_dbc.write(eq.list_jugador.at(i).minifoto);
+            arch_dbc.close();
+        }
+    }
+
     return 1;
 }

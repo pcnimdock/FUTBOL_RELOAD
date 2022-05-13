@@ -38,6 +38,11 @@ int Dialog_jugador::set_jugador(JUGADOR ju)
 
     if(!jug.FechaDeNacimiento.isEmpty())
     {
+        if(jug.FechaDeNacimiento.size()<3) //para poder editar estrellas mundiales
+        {
+            jug.FechaDeNacimiento.append('\0');
+            jug.FechaDeNacimiento.append('\0');
+        }
         ui->spin_dia->setValue(jug.FechaDeNacimiento.at(0));
         ui->spin_mes->setValue(jug.FechaDeNacimiento.at(1));
         ui->spin_anyo->setValue(jug.FechaDeNacimiento.at(2));
@@ -124,9 +129,12 @@ void Dialog_jugador::on_btn_guardar_clicked()
 
     if(!jug.FechaDeNacimiento.isEmpty())
     {
-        jug.FechaDeNacimiento[0]=ui->spin_dia->value();
-        jug.FechaDeNacimiento[1]=ui->spin_mes->value();
-        jug.FechaDeNacimiento[2]=ui->spin_anyo->value();
+        if(jug.FechaDeNacimiento.size()>1) //para poder editar estrellas mundiales
+        {
+            jug.FechaDeNacimiento[0]=ui->spin_dia->value();
+            jug.FechaDeNacimiento[1]=ui->spin_mes->value();
+            jug.FechaDeNacimiento[2]=ui->spin_anyo->value();
+        }
         jug.EquipoProcedencia=ui->le_EquipoProcedencia->text();
         jug.Internacional=ui->le_Internacional->text();
         jug.Altura= ui->le_Altura->text().toFloat()*100;

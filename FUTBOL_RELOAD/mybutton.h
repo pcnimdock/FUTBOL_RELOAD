@@ -11,6 +11,7 @@ public:
     void setId(int Id);
     int getId();
     void setIconEQ(QImage im);
+    void setIconEQ_italiano(QImage im);
     void setIconMinifoto(QImage im);
     void setIconMiniEsc(QImage im);
     void setIconBigfoto(QImage im);

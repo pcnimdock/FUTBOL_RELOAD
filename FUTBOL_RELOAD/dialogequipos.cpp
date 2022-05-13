@@ -41,7 +41,17 @@ int DialogEquipos::set_equipo(EQUIPO ptr_eq)
     ui->btn_ESCUDO->setEQname("ESCUDO");
     ui->btn_ESCUDO_SIM->setEQname("ESCUDO_SIM");
     ui->btn_ESCUDO->setIconEQ(trans.miniesc2QImage(eq.miniesc));
+    if(eq.EquipoIdDBC!=959901)
+    {
+        if(eq.esc_sim.size()>1500)
+        {
     ui->btn_ESCUDO_SIM->setIconEQ(trans.fotosim2QImage(eq.esc_sim));
+        }
+        else
+        {
+    ui->btn_ESCUDO_SIM->setIconEQ_italiano(trans.fotosim2QImage(eq.esc_sim));
+        }
+    }
     boton_group.addButton(ui->btn_ESCUDO,0);
     boton_group.addButton(ui->btn_ESCUDO_SIM,1);
 
@@ -133,7 +143,14 @@ void DialogEquipos::boton_group_clicked(int id)
         //escudo de simulador
         QString fileName = QFileDialog::getOpenFileName(this,tr("Archivo sustitución de Escudo"),"./" ,tr("Imagenes (*.bmp *.BMP)"));
         QImage im = QImage(fileName);
+        if(eq.esc_sim.size()<1500)
+        {
+            ui->btn_ESCUDO_SIM->setIconEQ_italiano(im);
+        }
+        else
+        {
         ui->btn_ESCUDO_SIM->setIconEQ(im);
+        }
     }
 }
 
