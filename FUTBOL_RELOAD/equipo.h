@@ -42,6 +42,14 @@ public:
     QList <JUGADOR> lista_jugadores;
     QList <ENTRENADOR> lista_entrenadores;
 
+    // Camiseta (equipación) real leída de PALETAS/EQUIPOS.DAT al procesar.
+    // numero_kit = posición (1-based) del equipo entre los EQ*.DBC
+    // ordenados por su ID numérico, excluyendo Estrellas Mundiales; -1 si
+    // no se ha podido determinar o no se encontró EQUIPOS.DAT.
+    int numero_kit = -1;
+    QByteArray equipacion1_textura; // 168 bytes, vacío si no se pudo leer
+    QByteArray equipacion2_textura; // 168 bytes, vacío si no se pudo leer
+
     void clear();
     QString get_nacion(uint8_t dato);
 

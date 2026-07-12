@@ -11,8 +11,54 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Estrellas Mundiales</string>
   </property>
+  <widget class="QLabel" name="label_nombre_corto">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>15</y>
+     <width>150</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Nombre corto:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="le_Nombre_Corto">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>33</y>
+     <width>150</width>
+     <height>24</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_nombre_mayus">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>65</y>
+     <width>150</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Nombre (mayúsculas):</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="le_nombre_corto_mayusculas">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>83</y>
+     <width>150</width>
+     <height>24</height>
+    </rect>
+   </property>
+  </widget>
   <widget class="QTableView" name="tableView_jugadores">
    <property name="geometry">
     <rect>
@@ -24,6 +70,32 @@
    </property>
    <property name="editTriggers">
     <set>QAbstractItemView::NoEditTriggers</set>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_mas_jugador">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>20</y>
+     <width>125</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>+ Añadir jugador</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_menos_jugador">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>55</y>
+     <width>125</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>- Quitar jugador</string>
    </property>
   </widget>
   <widget class="QPushButton" name="btn_volver">

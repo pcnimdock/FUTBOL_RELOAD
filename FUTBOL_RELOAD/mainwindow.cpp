@@ -1,8 +1,18 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "pcfutbol_imagenes.h"
+#include "pcfutbol_equipacion.h"
 #include <QDir>
 #include <QFile>
 #include <QMessageBox>
+#include <QFileDialog>
+#include <QPushButton>
+#include <QHBoxLayout>
+#include <QIcon>
+#include <QPalette>
+#include <QColor>
+#include <QMap>
+#include <algorithm>
 
 
 
@@ -11,6 +21,54 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    // --- Iconos de los botones de acción (coherentes con style.qss) ---
+    ui->pushButton->setIcon(QIcon(":/icons/folder.svg"));
+    ui->btn_procesar->setIcon(QIcon(":/icons/process.svg"));
+    ui->pushButton_2->setIcon(QIcon(":/icons/save.svg"));
+    ui->pushButton_estrellas->setIcon(QIcon(":/icons/star.svg"));
+    ui->boton_salir->setIcon(QIcon(":/icons/exit.svg"));
+    ui->lineEdit_2->addAction(QIcon(":/icons/search.svg"), QLineEdit::LeadingPosition);
+    ui->lineEdit_3->addAction(QIcon(":/icons/search.svg"), QLineEdit::LeadingPosition);
+    ui->lineEdit_2->setPlaceholderText("Buscar jugador...");
+
+    // --- Paleta oscura forzada para las tablas ---
+    // El QSS de background-color/color a veces no se propaga de forma
+    // fiable al viewport interno de QTableView (comportamiento conocido
+    // de Qt), así que se fija también por código para garantizar que el
+    // texto sea legible pase lo que pase con la hoja de estilos.
+    {
+        QPalette palTabla = ui->tableView_jugadores->palette();
+        palTabla.setColor(QPalette::Base, QColor("#202325"));
+        palTabla.setColor(QPalette::AlternateBase, QColor("#26292b"));
+        palTabla.setColor(QPalette::Text, QColor("#eaeaea"));
+        palTabla.setColor(QPalette::WindowText, QColor("#eaeaea"));
+        palTabla.setColor(QPalette::Highlight, QColor("#86aa1c"));
+        palTabla.setColor(QPalette::HighlightedText, QColor("#16210a"));
+        ui->tableView_jugadores->setPalette(palTabla);
+        ui->tableView_equipos->setPalette(palTabla);
+    }
+    ui->lineEdit_3->setPlaceholderText("Buscar equipo...");
+
+    // --- Botones de exportar/importar imágenes (extraer y reinyectar
+    //     todas las imágenes del juego: camisetas, escudos, fotos...) ---
+    QPushButton *btnExportar = new QPushButton(QIcon(":/icons/export.svg"), "Exportar imágenes", this);
+    QPushButton *btnImportar = new QPushButton(QIcon(":/icons/import.svg"), "Importar imágenes", this);
+    btnExportar->setObjectName("btnExportarImagenes");
+    btnImportar->setObjectName("btnImportarImagenes");
+
+    QHBoxLayout *layoutBotonesImagenes = new QHBoxLayout();
+    layoutBotonesImagenes->addWidget(btnExportar);
+    layoutBotonesImagenes->addWidget(btnImportar);
+
+    // Los añade al final del layout principal de la ventana central.
+    if (auto *layoutPrincipal = qobject_cast<QVBoxLayout*>(centralWidget()->layout())) {
+        layoutPrincipal->addLayout(layoutBotonesImagenes);
+    }
+
+    connect(btnExportar, &QPushButton::clicked, this, &MainWindow::on_btnExportarImagenes_clicked);
+    connect(btnImportar, &QPushButton::clicked, this, &MainWindow::on_btnImportarImagenes_clicked);
+
     list_eq_buttons.append(ui->EQ_BOTON_1);
     list_eq_buttons.append(ui->EQ_BOTON_2);
     list_eq_buttons.append(ui->EQ_BOTON_3);
@@ -41,7 +99,7 @@ MainWindow::MainWindow(QWidget *parent)
         EqButtonGroup.addButton(list_eq_buttons.at(i),i);
         connect(list_eq_buttons.at(i),SIGNAL(encima(int,char *)),this,SLOT(mouseOnEqButton(int,char *)));
     }
-    connect(&EqButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(EQ_button_clicked(int)));
+    connect(&EqButtonGroup, &QButtonGroup::idClicked, this, &MainWindow::EQ_button_clicked);
 
     QGraphicsDropShadowEffect *effect = new QGraphicsDropShadowEffect;
     QGraphicsDropShadowEffect *effect1 = new QGraphicsDropShadowEffect;
@@ -162,8 +220,9 @@ void MainWindow::on_btn_procesar_clicked()
     //añadido debug
     QString texto_comparacion;
     texto_comparacion.clear();
-    foreach(eq_file_str,lista_archivos)
+    for (const QString &eq_file_str_it : std::as_const(lista_archivos))
     {
+        eq_file_str = eq_file_str_it;
         QString file_path;
         quint32 num_eq;
         QString num_str=eq_file_str;
@@ -213,7 +272,7 @@ void MainWindow::on_btn_procesar_clicked()
         while(temp<temp2)
         {
             n=db.descodificar_caracter(arch.at(pos));
-            nombre_eq.append(n);
+            nombre_eq.append(n.toLatin1());
             pos++;
             temp++;
         }
@@ -244,7 +303,29 @@ void MainWindow::on_btn_procesar_clicked()
     arch_comp.write(texto_comparacion.toUtf8());
     arch_comp.close();
 
-    foreach (eq_file_str, lista_archivos) {
+    // --- Determinar el número de kit (n) de cada equipo para poder leer
+    //     su equipación real de PALETAS/EQUIPOS.DAT ---
+    // n = posición 1-based del equipo entre los EQ*.DBC ordenados por su
+    // ID numérico (los especiales 959900/959901 ya se han quitado de
+    // lista_archivos más arriba, así que no hace falta excluirlos aquí).
+    QStringList archivosOrdenadosPorId = lista_archivos;
+    std::sort(archivosOrdenadosPorId.begin(), archivosOrdenadosPorId.end(),
+               [](const QString &a, const QString &b)
+    {
+        QString na = a; na = na.remove(8,4).remove(0,2);
+        QString nb = b; nb = nb.remove(8,4).remove(0,2);
+        return na.toLong() < nb.toLong();
+    });
+    QMap<QString,int> numeroKitPorArchivo;
+    for (int i = 0; i < archivosOrdenadosPorId.size(); i++)
+    {
+        numeroKitPorArchivo[archivosOrdenadosPorId.at(i)] = i + 1;
+    }
+    QString rutaEquiposDat = ui->lineEdit->text() + "/PALETAS/EQUIPOS.DAT";
+    bool hayEquiposDat = QFile::exists(rutaEquiposDat);
+
+    for (const QString &eq_file_str_it : std::as_const(lista_archivos)) {
+        eq_file_str = eq_file_str_it;
         QString file_path;
         quint32 num_eq;
         QString num_str=eq_file_str;
@@ -547,6 +628,17 @@ void MainWindow::on_btn_procesar_clicked()
         {
             equipo.isBBDD_neg=0;
         }
+
+        equipo.numero_kit = numeroKitPorArchivo.value(eq_file_str, -1);
+        if(hayEquiposDat && equipo.numero_kit>0)
+        {
+            bool ok1=false, ok2=false;
+            QByteArray b1 = PCFutbolEquipacion::leerBloqueEquipacion(rutaEquiposDat, equipo.numero_kit, true, &ok1);
+            QByteArray b2 = PCFutbolEquipacion::leerBloqueEquipacion(rutaEquiposDat, equipo.numero_kit, false, &ok2);
+            if(ok1) equipo.equipacion1_textura = b1.mid(8, PCFutbolEquipacion::TAM_TEXTURA);
+            if(ok2) equipo.equipacion2_textura = b2.mid(8, PCFutbolEquipacion::TAM_TEXTURA);
+        }
+
         lista_equipos.append(equipo);
         lista_equipos.last().lista_jugadores=lista_jugadores;
         lista_equipos.last().lista_entrenadores=lista_entrenadores;
@@ -579,7 +671,11 @@ void MainWindow::on_btn_procesar_clicked()
     {
         punteros.append(lista_jugadores_totales.at(i).puntero);
     }
-    qSort(punteros.begin(),punteros.end());
+    for(int i=0; i<estrellas.list_jugador.size();i++)
+    {
+        punteros.append(estrellas.list_jugador.at(i).puntero);
+    }
+    std::sort(punteros.begin(),punteros.end());
 
     //mostrar todos los jugadores con su equipo en el tableviewjugadores
 
@@ -632,15 +728,6 @@ void MainWindow::on_btn_procesar_clicked()
 
     model2->setHeaderData(0, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
     ui->tableView_equipos->setModel(model2);
-    ui->tableView_jugadores->setStyleSheet("QTableView::item:selected { color:white; background:black; font-weight:1000; }"
-                                           "QTableCornerButton::section { background-color:#232326; }"
-                                           "QHeaderView::section { color:white; background-color:#a2d324; }"
-                                           "QTableView {background:white;}");
-
-    ui->tableView_equipos->setStyleSheet("QTableView::item:selected { color:white; background:black; font-weight:1000; }"
-                                         "QTableCornerButton::section { background-color:#232326; }"
-                                         "QHeaderView::section { color:white; background-color:#a2d324; }"
-                                         "QTableView {background:white;}");
 
     ui->pushButton_2->setEnabled(true);
 
@@ -696,6 +783,7 @@ void MainWindow::EQ_button_clicked(int id)
         EQUIPO eq = lista_equipos.at(num_eq);
         dialog_equipo.set_equipo(eq);
         dialog_equipo.set_punteros(punteros);
+        dialog_equipo.setRutaJuego(ui->lineEdit->text());
         if(QDialog::Accepted==dialog_equipo.exec())
         {
             eq =dialog_equipo.get_equipo();
@@ -732,6 +820,7 @@ void MainWindow::on_tableView_equipos_doubleClicked(const QModelIndex &index)
         EQUIPO eq = lista_equipos.at(num_eq);
         dialog_equipo.set_equipo(eq);
         dialog_equipo.set_punteros(punteros);
+        dialog_equipo.setRutaJuego(ui->lineEdit->text());
         if(QDialog::Accepted==dialog_equipo.exec())
         {
             eq =dialog_equipo.get_equipo();
@@ -1122,17 +1211,80 @@ void MainWindow::on_pushButton_estrellas_clicked()
   //identificar qué equipo es
   EQUIPO eq;
   eq.lista_jugadores=estrellas.list_jugador;
+  eq.EquipoIdDBC=estrellas.estrellas_mundiales.EquipoIdDBC;
+  eq.NombreCorto=estrellas.estrellas_mundiales.NombreCorto;
+  eq.nombre_corto_mayusculas=estrellas.estrellas_mundiales.nombre_corto_mayusculas;
   dialog_estrellas.set_equipo(eq);
+  dialog_estrellas.set_punteros(punteros);
   if(QDialog::Accepted==dialog_estrellas.exec())
   {
       eq =dialog_estrellas.get_equipo();
       estrellas.list_jugador=eq.lista_jugadores;
-      /*
-            eq =dialog_equipo.get_equipo();
-            lista_equipos[num_eq]=eq;
-      */
-
-
+      estrellas.estrellas_mundiales.NombreCorto=eq.NombreCorto;
+      estrellas.estrellas_mundiales.nombre_corto_mayusculas=eq.nombre_corto_mayusculas;
+      punteros = dialog_estrellas.get_punteros();
   }
 
+}
+
+void MainWindow::on_btnExportarImagenes_clicked()
+{
+    QString carpetaJuego = QFileDialog::getExistingDirectory(
+        this, "Selecciona la carpeta del juego (donde está PCFUTBOL.DAT)");
+    if (carpetaJuego.isEmpty()) return;
+
+    QString carpetaSalida = QFileDialog::getExistingDirectory(
+        this, "Selecciona (o crea) la carpeta donde guardar las imágenes");
+    if (carpetaSalida.isEmpty()) return;
+
+    setCursor(Qt::WaitCursor);
+    auto r = PCFutbolImagenes::exportarImagenes(carpetaJuego, carpetaSalida);
+    unsetCursor();
+
+    QString resumen = QString(
+        "Ficheros escaneados: %1\n"
+        "Ficheros con imagen reconocida: %2\n"
+        "Imágenes extraídas: %3\n\n"
+        "Manifest: %4")
+        .arg(r.ficherosEscaneados)
+        .arg(r.ficherosConImagen)
+        .arg(r.imagenesExtraidas)
+        .arg(r.manifestPath);
+
+    if (!r.errores.isEmpty())
+        resumen += "\n\nAvisos:\n" + r.errores.join("\n");
+
+    QMessageBox::information(this, "Exportación completada", resumen);
+}
+
+void MainWindow::on_btnImportarImagenes_clicked()
+{
+    QString carpetaJuego = QFileDialog::getExistingDirectory(
+        this, "Selecciona la carpeta ORIGINAL del juego (sin modificar)");
+    if (carpetaJuego.isEmpty()) return;
+
+    QString carpetaImagenes = QFileDialog::getExistingDirectory(
+        this, "Selecciona la carpeta de imágenes (con manifest.csv, editadas o no)");
+    if (carpetaImagenes.isEmpty()) return;
+
+    QString carpetaNueva = QFileDialog::getExistingDirectory(
+        this, "Selecciona (vacía) dónde crear la copia nueva y modificada del juego");
+    if (carpetaNueva.isEmpty()) return;
+
+    setCursor(Qt::WaitCursor);
+    auto r = PCFutbolImagenes::importarImagenes(carpetaJuego, carpetaImagenes, carpetaNueva);
+    unsetCursor();
+
+    QString resumen = QString(
+        "Ficheros reescritos: %1\n"
+        "Imágenes reinyectadas: %2\n\n"
+        "Copia nueva del juego en:\n%3")
+        .arg(r.ficherosReescritos)
+        .arg(r.imagenesReinyectadas)
+        .arg(r.carpetaNueva);
+
+    if (!r.errores.isEmpty())
+        resumen += "\n\nAvisos:\n" + r.errores.join("\n");
+
+    QMessageBox::information(this, "Importación completada", resumen);
 }

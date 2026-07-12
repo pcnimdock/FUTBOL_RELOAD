@@ -1,4 +1,6 @@
 #include "estrellas_mundiales.h"
+#include <QFile>
+#include <QIODevice>
 
 ESTRELLAS_MUNDIALES::ESTRELLAS_MUNDIALES()
 {

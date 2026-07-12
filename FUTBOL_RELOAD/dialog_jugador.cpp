@@ -1,11 +1,23 @@
 #include "dialog_jugador.h"
 #include "ui_dialog_jugador.h"
+#include <QFile>
 
 Dialog_jugador::Dialog_jugador(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::Dialog_jugador)
 {
     ui->setupUi(this);
+
+    // Aplicar el tema oscuro directamente sobre este diálogo: al ser un
+    // diálogo modal (a veces anidado dentro de otro diálogo modal), no
+    // siempre hereda de forma fiable el stylesheet puesto a nivel de
+    // QApplication, así que se recarga también aquí para asegurar que
+    // se vea igual que el resto de la aplicación.
+    QFile estiloFile(":/style/style.qss");
+    if (estiloFile.open(QFile::ReadOnly | QFile::Text)) {
+        setStyleSheet(QString::fromUtf8(estiloFile.readAll()));
+        estiloFile.close();
+    }
 }
 
 Dialog_jugador::~Dialog_jugador()

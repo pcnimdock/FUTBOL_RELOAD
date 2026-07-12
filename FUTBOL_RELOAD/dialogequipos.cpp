@@ -1,7 +1,12 @@
 #include "dialogequipos.h"
 #include "ui_dialogequipos.h"
+#include "dialog_equipacion.h"
 #include <QString>
 #include <QFileDialog>
+#include <QFile>
+#include <QPalette>
+#include <QColor>
+#include <QPushButton>
 
 
 DialogEquipos::DialogEquipos(QWidget *parent) :
@@ -9,7 +14,60 @@ DialogEquipos::DialogEquipos(QWidget *parent) :
     ui(new Ui::DialogEquipos)
 {
     ui->setupUi(this);
-    connect(&boton_group,SIGNAL(buttonClicked(int)), this, SLOT(boton_group_clicked(int)));
+    connect(&boton_group, &QButtonGroup::idClicked, this, &DialogEquipos::boton_group_clicked);
+
+    // --- Botón para abrir el editor de equipación (camiseta) ---
+    QPushButton *btnEquipacion = new QPushButton("Editar equipación", this);
+    btnEquipacion->setObjectName("btnEditarEquipacion");
+    ui->gridLayout_2->addWidget(btnEquipacion, 1, 0, 1, 4);
+    connect(btnEquipacion, &QPushButton::clicked, this, [this]() {
+        DialogEquipacion dlgEquipacion(this);
+        if(!rutaJuego.isEmpty())
+        {
+            dlgEquipacion.setRutaEquiposDat(rutaJuego + "/PALETAS/EQUIPOS.DAT");
+        }
+        if(eq.numero_kit > 0)
+        {
+            dlgEquipacion.setNumeroEquipo(eq.numero_kit);
+        }
+        if(!eq.equipacion1_textura.isEmpty())
+        {
+            dlgEquipacion.mostrarTexturaActual(true, eq.equipacion1_textura);
+        }
+        if(!eq.equipacion2_textura.isEmpty())
+        {
+            dlgEquipacion.mostrarTexturaActual(false, eq.equipacion2_textura);
+        }
+        dlgEquipacion.exec();
+
+        // El editor puede haber cambiado las texturas (pintadas a mano o por
+        // patrón). Las recogemos para que el EQUIPO en memoria quede al día.
+        const QByteArray t1 = dlgEquipacion.texturaEditada(true);
+        const QByteArray t2 = dlgEquipacion.texturaEditada(false);
+        if(t1.size() == PCFutbolEquipacion::TAM_TEXTURA)
+        {
+            eq.equipacion1_textura = t1;
+        }
+        if(t2.size() == PCFutbolEquipacion::TAM_TEXTURA)
+        {
+            eq.equipacion2_textura = t2;
+        }
+    });
+
+    QFile estiloFile(":/style/style.qss");
+    if (estiloFile.open(QFile::ReadOnly | QFile::Text)) {
+        setStyleSheet(QString::fromUtf8(estiloFile.readAll()));
+        estiloFile.close();
+    }
+
+    QPalette palTabla = ui->tableView_jugadores->palette();
+    palTabla.setColor(QPalette::Base, QColor("#202325"));
+    palTabla.setColor(QPalette::AlternateBase, QColor("#26292b"));
+    palTabla.setColor(QPalette::Text, QColor("#eaeaea"));
+    palTabla.setColor(QPalette::WindowText, QColor("#eaeaea"));
+    palTabla.setColor(QPalette::Highlight, QColor("#86aa1c"));
+    palTabla.setColor(QPalette::HighlightedText, QColor("#16210a"));
+    ui->tableView_jugadores->setPalette(palTabla);
 }
 
 DialogEquipos::~DialogEquipos()
@@ -77,10 +135,6 @@ int DialogEquipos::set_equipo(EQUIPO ptr_eq)
     model->setHeaderData(0, Qt::Horizontal, tr("MiniFoto"), Qt::DisplayRole);
     model->setHeaderData(1, Qt::Horizontal, tr("Nombre"), Qt::DisplayRole);
     ui->tableView_jugadores->setModel(model);
-    ui->tableView_jugadores->setStyleSheet("QTableView::item:selected { color:white; background:black; font-weight:1000; }"
-                                           "QTableCornerButton::section { background-color:#232326; }"
-                                           "QHeaderView::section { color:white; background-color:#a2d324; }"
-                                           "QTableView {background:white;}");
 
     model2 = new QStandardItemModel(eq.lista_entrenadores.size(),2,this);
     for(int i=0;i<eq.lista_entrenadores.size();i++)
@@ -100,10 +154,6 @@ int DialogEquipos::set_equipo(EQUIPO ptr_eq)
         }
     }
     ui->tableView_entrenadores->setModel(model2);
-    ui->tableView_entrenadores->setStyleSheet("QTableView::item:selected { color:white; background:black; font-weight:1000; }"
-                                              "QTableCornerButton::section { background-color:#232326; }"
-                                              "QHeaderView::section { color:white; background-color:#a2d324; }"
-                                              "QTableView {background:white;}");
 
     return 1;
 
@@ -126,6 +176,11 @@ EQUIPO DialogEquipos::get_equipo()
 {
     return eq;
 
+}
+
+void DialogEquipos::setRutaJuego(const QString &ruta)
+{
+    rutaJuego = ruta;
 }
 
 void DialogEquipos::boton_group_clicked(int id)

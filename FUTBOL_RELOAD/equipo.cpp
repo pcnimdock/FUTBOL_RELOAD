@@ -32,6 +32,9 @@ void EQUIPO::clear()
     bigesc.clear();
     esc_sim.clear();
     cabecera.clear();
+    numero_kit=-1;
+    equipacion1_textura.clear();
+    equipacion2_textura.clear();
 }
 //nación en posicion en archivo 0x2B
 QString EQUIPO::get_nacion(uint8_t dato)

@@ -24,6 +24,7 @@ public:
     int set_punteros(QList <quint16> punteros);
     QList <quint16> get_punteros();
     EQUIPO get_equipo();
+    void setRutaJuego(const QString &ruta);
      EQUIPO eq;
      TRANSFORM_MINIFOTO trans;
 
@@ -44,6 +45,7 @@ private:
     QButtonGroup boton_group;
     void update_model();
     QList <quint16> punteros;
+    QString rutaJuego;
 
 
 };
