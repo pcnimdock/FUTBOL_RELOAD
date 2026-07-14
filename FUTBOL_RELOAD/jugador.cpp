@@ -15,6 +15,7 @@ void JUGADOR::clear()
     EstadoFichaje=0;
     DemarcacionPref=0;
     DemarcacionesSecundarias.clear(); //5bytes
+    PosicionEnAlineacion=0;
     Extranjero=0;
     Piel=0;
     Pelo=0;

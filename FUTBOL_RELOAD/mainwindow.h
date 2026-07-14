@@ -58,11 +58,15 @@ private slots:
 
     void on_pushButton_estrellas_clicked();
 
+    void exportarImagenes();
+    void importarImagenes();
+    void exportarSonidos();
+    void importarSonidos();
+
 private:
     Ui::MainWindow *ui;
     QStringList lista_archivos;
     BBDD_FUTBOL db;
-    QFile *file;
     EQUIPO equipo;
     ENTRENADOR entrenador;
     JUGADOR jugador;
@@ -78,14 +82,25 @@ private:
 
     QStandardItemModel *model;
     QStandardItemModel *model2;
+    QImage imagenVacia; // icono de casilla vacía, cacheado
 
      QStringList lista_busqueda_jugador;
      QStringList lista_busqueda_equipo;
      QList <QByteArray> lista_busqueda_minifoto;
 
-    int procesar_datos_equipo(EQUIPO *eq,QByteArray datos,quint32 *pos_memoria);
-    int procesar_datos_entrenador(ENTRENADOR *ent,QByteArray datos,quint32 *pos_memoria);
-    int procesar_datos_jugador(JUGADOR *jug,QByteArray datos,quint32 *pos_memoria);
+    int procesar_datos_equipo(EQUIPO *eq, const QByteArray &datos, quint32 *pos_memoria);
+
+    // --- Soporte PC Fútbol 4.0 / 4.5 --------------------------------------
+    // 40 = PC Fútbol 4.0, 45 = PC Fútbol 4.5. Se detecta al procesar la
+    // carpeta del juego (ver detectarVersion()). Determina el nombre del
+    // fichero de Estrellas Mundiales y el de la carpeta de salida.
+    int version_pcf = 45;
+    int detectarVersion(const QString &rutaJuego);   // devuelve 40 o 45
+
+    // Carpeta del juego ya seleccionada en el cuadro de ruta (vacía si no hay
+    // ninguna válida). La usan Exportar/Importar imágenes para no volver a
+    // preguntar por una carpeta que el usuario ya ha elegido.
+    QString rutaJuegoActual() const;
 
 };
 #endif // MAINWINDOW_H

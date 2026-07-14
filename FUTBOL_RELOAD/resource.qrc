@@ -4,6 +4,19 @@
         <file>img/dataempty.bmp</file>
         <file>img/logo.png</file>
     </qresource>
+    <qresource prefix="/icons">
+        <file alias="folder.svg">img/icons/folder.svg</file>
+        <file alias="process.svg">img/icons/process.svg</file>
+        <file alias="save.svg">img/icons/save.svg</file>
+        <file alias="star.svg">img/icons/star.svg</file>
+        <file alias="exit.svg">img/icons/exit.svg</file>
+        <file alias="export.svg">img/icons/export.svg</file>
+        <file alias="import.svg">img/icons/import.svg</file>
+        <file alias="search.svg">img/icons/search.svg</file>
+    </qresource>
+    <qresource prefix="/style">
+        <file>style.qss</file>
+    </qresource>
     <qresource prefix="/demarcaciones">
         <file>img/demarcaciones/02Lateral Derecho.bmp</file>
         <file>img/demarcaciones/03Lateral Izquierdo.bmp</file>

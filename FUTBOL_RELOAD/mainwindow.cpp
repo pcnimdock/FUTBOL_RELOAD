@@ -1,12 +1,17 @@
 #include "mainwindow.h"
+#include <QProgressDialog>
+#include <QApplication>
 #include "ui_mainwindow.h"
 #include "pcfutbol_imagenes.h"
+#include "pcfutbol_extras.h"
 #include "pcfutbol_equipacion.h"
 #include <QDir>
 #include <QFile>
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QPushButton>
+#include <QLabel>
+#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QPalette>
@@ -21,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setWindowTitle(tr("Fútbol Reload — Editor de PC Fútbol 4.0 / 4.5"));
 
     // --- Iconos de los botones de acción (coherentes con style.qss) ---
     ui->pushButton->setIcon(QIcon(":/icons/folder.svg"));
@@ -57,70 +63,56 @@ MainWindow::MainWindow(QWidget *parent)
     btnExportar->setObjectName("btnExportarImagenes");
     btnImportar->setObjectName("btnImportarImagenes");
 
+    // --- Botones de exportar/importar sonidos (SONIDOS/*.RAW <-> WAV) ---
+    QPushButton *btnExportarSon = new QPushButton(QIcon(":/icons/export.svg"), "Exportar sonidos", this);
+    QPushButton *btnImportarSon = new QPushButton(QIcon(":/icons/import.svg"), "Importar sonidos", this);
+    btnExportarSon->setObjectName("btnExportarSonidos");
+    btnImportarSon->setObjectName("btnImportarSonidos");
+
     QHBoxLayout *layoutBotonesImagenes = new QHBoxLayout();
     layoutBotonesImagenes->addWidget(btnExportar);
     layoutBotonesImagenes->addWidget(btnImportar);
+    layoutBotonesImagenes->addWidget(btnExportarSon);
+    layoutBotonesImagenes->addWidget(btnImportarSon);
 
     // Los añade al final del layout principal de la ventana central.
     if (auto *layoutPrincipal = qobject_cast<QVBoxLayout*>(centralWidget()->layout())) {
         layoutPrincipal->addLayout(layoutBotonesImagenes);
     }
 
-    connect(btnExportar, &QPushButton::clicked, this, &MainWindow::on_btnExportarImagenes_clicked);
-    connect(btnImportar, &QPushButton::clicked, this, &MainWindow::on_btnImportarImagenes_clicked);
+    connect(btnExportar, &QPushButton::clicked, this, &MainWindow::exportarImagenes);
+    connect(btnImportar, &QPushButton::clicked, this, &MainWindow::importarImagenes);
+    connect(btnExportarSon, &QPushButton::clicked, this, &MainWindow::exportarSonidos);
+    connect(btnImportarSon, &QPushButton::clicked, this, &MainWindow::importarSonidos);
 
-    list_eq_buttons.append(ui->EQ_BOTON_1);
-    list_eq_buttons.append(ui->EQ_BOTON_2);
-    list_eq_buttons.append(ui->EQ_BOTON_3);
-    list_eq_buttons.append(ui->EQ_BOTON_4);
-    list_eq_buttons.append(ui->EQ_BOTON_5);
-    list_eq_buttons.append(ui->EQ_BOTON_6);
-    list_eq_buttons.append(ui->EQ_BOTON_7);
-    list_eq_buttons.append(ui->EQ_BOTON_8);
-    list_eq_buttons.append(ui->EQ_BOTON_9);
-    list_eq_buttons.append(ui->EQ_BOTON_10);
-    list_eq_buttons.append(ui->EQ_BOTON_11);
-    list_eq_buttons.append(ui->EQ_BOTON_12);
-    list_eq_buttons.append(ui->EQ_BOTON_13);
-    list_eq_buttons.append(ui->EQ_BOTON_14);
-    list_eq_buttons.append(ui->EQ_BOTON_15);
-    list_eq_buttons.append(ui->EQ_BOTON_16);
-    list_eq_buttons.append(ui->EQ_BOTON_17);
-    list_eq_buttons.append(ui->EQ_BOTON_18);
-    list_eq_buttons.append(ui->EQ_BOTON_19);
-    list_eq_buttons.append(ui->EQ_BOTON_20);
-    QImage im(":/img/img/dataempty.bmp");
-    for(int i=0;i<list_eq_buttons.size();i++)
+    // Imagen de "casilla vacía" cacheada: antes se recargaba del recurso
+    // en cada refresco de la rejilla de equipos.
+    imagenVacia = QImage(":/img/img/dataempty.bmp");
+
+    // Los 20 botones de la rejilla de equipos se llaman EQ_BOTON_1..20
+    // en el .ui; se localizan por nombre en vez de listarlos a mano.
+    for(int i=0;i<20;i++)
     {
-        list_eq_buttons.at(i)->setId(i);
-        list_eq_buttons.at(i)->setEQname(QString("Empty %1").arg(QString::number(i)));
-        list_eq_buttons.at(i)->setIconEQ(im);
-        list_eq_buttons.at(i)->setText("");
-        EqButtonGroup.addButton(list_eq_buttons.at(i),i);
-        connect(list_eq_buttons.at(i),SIGNAL(encima(int,char *)),this,SLOT(mouseOnEqButton(int,char *)));
+        mybutton *btn = findChild<mybutton*>(QString("EQ_BOTON_%1").arg(i+1));
+        if(!btn) continue;
+        list_eq_buttons.append(btn);
+        btn->setId(i);
+        btn->setEQname(QString("Empty %1").arg(QString::number(i)));
+        btn->setIconEQ(imagenVacia);
+        btn->setText("");
+        EqButtonGroup.addButton(btn,i);
+        connect(btn,SIGNAL(encima(int,char *)),this,SLOT(mouseOnEqButton(int,char *)));
     }
     connect(&EqButtonGroup, &QButtonGroup::idClicked, this, &MainWindow::EQ_button_clicked);
 
-    QGraphicsDropShadowEffect *effect = new QGraphicsDropShadowEffect;
-    QGraphicsDropShadowEffect *effect1 = new QGraphicsDropShadowEffect;
-    QGraphicsDropShadowEffect *effect2 = new QGraphicsDropShadowEffect;
-    effect->setBlurRadius(5);
-    effect->setXOffset(5);
-    effect->setYOffset(5);
-    effect->setColor(Qt::darkGray);
-
-    effect1->setBlurRadius(5);
-    effect1->setXOffset(5);
-    effect1->setYOffset(5);
-    effect1->setColor(Qt::darkGray);
-
-    effect2->setBlurRadius(5);
-    effect2->setXOffset(5);
-    effect2->setYOffset(5);
-    effect2->setColor(Qt::darkGray);
-    ui->label->setGraphicsEffect(effect);
-    ui->label_2->setGraphicsEffect(effect1);
-    ui->label_3->setGraphicsEffect(effect2);
+    for(QLabel *lbl : {ui->label, ui->label_2, ui->label_3})
+    {
+        auto *sombra = new QGraphicsDropShadowEffect(lbl);
+        sombra->setBlurRadius(8);
+        sombra->setOffset(2, 2);
+        sombra->setColor(QColor(0, 0, 0, 140));
+        lbl->setGraphicsEffect(sombra);
+    }
 
     model = new QStandardItemModel(lista_jugadores_totales.size(),3,this);
     model2 = new QStandardItemModel(lista_equipos.size(),1,this);
@@ -168,22 +160,32 @@ void MainWindow::on_btn_procesar_clicked()
 
     quint8 num_boton_eq=0;
     lista_equipos.clear();
-    //if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
-    if(QString::compare(lista_archivos.last(),"EQ959901.DBC", Qt::CaseInsensitive)==0)
+
+    // --- Detección de la versión del juego (4.0 / 4.5) ---------------------
+    version_pcf = detectarVersion(ui->lineEdit->text());
+    db.configurarVersion(version_pcf);
+    const QString ver_txt = (version_pcf==40) ? "4.0" : "4.5";
+    setWindowTitle(tr("Fútbol Reload — Editor de PC Fútbol %1").arg(ver_txt));
+    ui->statusbar->showMessage(tr("PC Fútbol %1 detectado — la salida se escribirá en %2")
+                                   .arg(ver_txt, db.carpetaSalida()));
+
+    // --- Estrellas Mundiales ------------------------------------------------
+    // El fichero se llama EQ959901.DBC en PC Fútbol 4.5 y EQ959900.DBC en
+    // PC Fútbol 4.0. En ambos casos es el último de la lista ordenada y su
+    // formato interno es IDÉNTICO (misma cabecera de 0x2C, id u16, nombre,
+    // 43 bytes opacos, "SEGUNDA B", 275 bytes opacos y la lista de jugadores),
+    // así que basta con leer el que exista y sacarlo de la lista de equipos.
+    const QString nombre_estrellas = db.ficheroEstrellas();
+    if(QString::compare(lista_archivos.last(), nombre_estrellas, Qt::CaseInsensitive)==0)
     {
-        //PCF4.5 Estrellas mundiales
-        //QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
-        //Apertura estrellas mundiales
-        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959901.DBC";
+        QString file_path=ui->lineEdit->text()+"/DBDAT/"+nombre_estrellas;
 
         QFile file_estrellas(file_path);
         if(!file_estrellas.open(QIODevice::ReadOnly))
         {
             QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                                  //tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
-                                  tr("Error abriendo EQ959901.DBC\n")+eq_file_str,
+                                  tr("Error abriendo %1").arg(nombre_estrellas),
                                   QMessageBox::Ok);
-
             return;
         }
         QByteArray datos;
@@ -193,115 +195,20 @@ void MainWindow::on_btn_procesar_clicked()
         estrellas.guardar_datos_de_archivo(datos);
         lista_archivos.removeLast();
     }
-    if(QString::compare(lista_archivos.last(),"EQ959900.DBC", Qt::CaseInsensitive)==0)
+
+    // Red de seguridad: cualquier EQ9599xx.DBC que quedara suelto (por una
+    // detección de versión errónea o por una instalación mixta) NO puede
+    // pasar por el parser genérico de equipos, porque no tiene ni entrenador
+    // ni bloque de estadísticas y reventaría la lectura.
+    for(int i=lista_archivos.size()-1;i>=0;i--)
     {
-        //PCF4.5 Estrellas mundiales
-        //QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
-        //Apertura estrellas mundiales
-        QString file_path=ui->lineEdit->text()+"/DBDAT/EQ959900.DBC";
-
-        QFile file_estrellas(file_path);
-        if(!file_estrellas.open(QIODevice::ReadOnly))
-        {
-            QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                                  //tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
-                                  tr("Error abriendo EQ959900.DBC\n")+eq_file_str,
-                                  QMessageBox::Ok);
-
-            return;
-        }
-        QByteArray datos;
-        datos=file_estrellas.readAll();
-        file_estrellas.close();
-        estrellas.ruta_pcf=ui->lineEdit->text();
-        estrellas.guardar_datos_de_archivo(datos);
-        lista_archivos.removeLast();
-    }
-    //añadido debug
-    QString texto_comparacion;
-    texto_comparacion.clear();
-    for (const QString &eq_file_str_it : std::as_const(lista_archivos))
-    {
-        eq_file_str = eq_file_str_it;
-        QString file_path;
-        quint32 num_eq;
-        QString num_str=eq_file_str;
-        num_str=num_str.remove(8,4).remove(0,2);;
-        num_eq=num_str.toLong();
-
-        file_path = ui->lineEdit->text() + +"/DBDAT/" + eq_file_str;
-        file = new QFile(file_path);
-        if(!file->open(QIODevice::ReadOnly))
-        {
-
-            QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                                  tr("Error abriendo archivo\n")+eq_file_str,
-                                  QMessageBox::Ok);
-            delete file;
-            return;
-        }
-        texto_comparacion.append(eq_file_str);
-        texto_comparacion.append(";");
-
-        //se ha abierto el archivo
-        //procesar
-        QByteArray arch;
-
-        arch = file->readAll();
-        QString hex;
-        hex.setNum(arch.at(0x25),16);
-        texto_comparacion.append(hex);
-        texto_comparacion.append(";");
-        hex.clear();
-        hex.setNum(arch.at(0x2A),16);
-        texto_comparacion.append(hex);
-        texto_comparacion.append(";");
-        hex.clear();
-        hex.setNum(arch.at(0x2B),16);
-        texto_comparacion.append(hex);
-        texto_comparacion.append(";");
-        //añadir nombre de equipo
-        QByteArray nombre_eq;
-        nombre_eq.clear();
-        uint16_t temp=0;
-        uint16_t temp2;
-        uint16_t pos=0x2D;
-
-        temp2=arch.at(0x2C);
-        QChar n;
-        while(temp<temp2)
-        {
-            n=db.descodificar_caracter(arch.at(pos));
-            nombre_eq.append(n.toLatin1());
-            pos++;
-            temp++;
-        }
-        texto_comparacion.append(nombre_eq);
-        texto_comparacion.append(";");
-        texto_comparacion.append("\r\n");
-
-
-        equipo.clear();
-        equipo.EquipoIdDBC=num_eq;
-
-        //grabar
-        QFile arch_dbc(QString("EQ%1.DBC").arg(QString::number(equipo.EquipoIdDBC),6,QChar('0')));
-        if(!arch_dbc.open(QIODevice::WriteOnly))
-        {
-            return; //no se ha podido abrir para escribir
-        }
-        arch_dbc.write(arch,0x2C);
-        arch_dbc.close();
-
+        if(lista_archivos.at(i).startsWith("EQ9599", Qt::CaseInsensitive))
+            lista_archivos.removeAt(i);
     }
 
-    QFile arch_comp(QString("arch_comp.csv"));
-    if(!arch_comp.open(QIODevice::WriteOnly))
-    {
-        return; //no se ha podido abrir para escribir
-    }
-    arch_comp.write(texto_comparacion.toUtf8());
-    arch_comp.close();
+    // (Se eliminó aquí una pasada de depuración que reescribía ficheros
+    // EQ*.DBC truncados y un arch_comp.csv en el directorio de trabajo:
+    // era código de análisis que podía corromper datos del usuario.)
 
     // --- Determinar el número de kit (n) de cada equipo para poder leer
     //     su equipación real de PALETAS/EQUIPOS.DAT ---
@@ -324,30 +231,51 @@ void MainWindow::on_btn_procesar_clicked()
     QString rutaEquiposDat = ui->lineEdit->text() + "/PALETAS/EQUIPOS.DAT";
     bool hayEquiposDat = QFile::exists(rutaEquiposDat);
 
+    // --- Barra de progreso del procesado ------------------------------------
+    QProgressDialog progreso(tr("Procesando equipos…"), tr("Cancelar"),
+                             0, lista_archivos.size(), this);
+    progreso.setWindowTitle(tr("FUTBOL RELOAD"));
+    progreso.setWindowModality(Qt::WindowModal);
+    progreso.setMinimumDuration(0);
+    progreso.setAutoClose(true);
+    int eq_procesados = 0;
+
     for (const QString &eq_file_str_it : std::as_const(lista_archivos)) {
         eq_file_str = eq_file_str_it;
+
+        progreso.setValue(eq_procesados++);
+        progreso.setLabelText(tr("Procesando %1  (%2 de %3)")
+                                  .arg(eq_file_str)
+                                  .arg(eq_procesados)
+                                  .arg(lista_archivos.size()));
+        QApplication::processEvents();
+        if (progreso.wasCanceled())
+        {
+            lista_equipos.clear();
+            lista_jugadores_totales.clear();
+            ui->statusbar->showMessage(tr("Procesado cancelado."));
+            return;
+        }
+
         QString file_path;
         quint32 num_eq;
         QString num_str=eq_file_str;
         num_str=num_str.remove(8,4).remove(0,2);;
         num_eq=num_str.toLong();
 
-        file_path = ui->lineEdit->text() + +"/DBDAT/" + eq_file_str;
-        file = new QFile(file_path);
-        if(!file->open(QIODevice::ReadOnly))
+        file_path = ui->lineEdit->text() + "/DBDAT/" + eq_file_str;
+        QFile ficheroDbc(file_path);
+        if(!ficheroDbc.open(QIODevice::ReadOnly))
         {
-
             QMessageBox::critical(this, tr("FUTBOL RELOAD"),
                                   tr("Error abriendo archivo\n")+eq_file_str,
                                   QMessageBox::Ok);
-            delete file;
             return;
         }
 
-        //se ha abierto el archivo
-        //procesar
-        QByteArray arch;
-        arch = file->readAll();
+        //se ha abierto el archivo: procesar
+        QByteArray arch = ficheroDbc.readAll();
+        ficheroDbc.close();
         quint32 pos_memoria=0;
         equipo.clear();
         equipo.EquipoIdDBC=num_eq;
@@ -397,16 +325,12 @@ void MainWindow::on_btn_procesar_clicked()
 
 
         quint8 isEntrenador=1;
-        if(equipo.EquipoIdDBC==959900)
-        {
-            isEntrenador=0;
-            pos_memoria=0x189;;
-        }
+        // (Antes había aquí un caso especial para el equipo 959900 que saltaba
+        //  a la posición fija 0x189. Era código muerto —Estrellas Mundiales se
+        //  procesa con su propio parser y se elimina de lista_archivos— y
+        //  además la constante sólo valía para 4.5: en 4.0 los jugadores del
+        //  fichero de estrellas empiezan en 0x18A. Eliminado.)
 
-        if(equipo.EquipoIdDBC==950201)
-        {
-            equipo.EquipoIdDBC=950201;
-        }
         while(isEntrenador)
         {
 
@@ -468,11 +392,6 @@ void MainWindow::on_btn_procesar_clicked()
             //Almacenar al entrenador en memoria
             lista_entrenadores.append(entrenador);
             //comprobar si el siguiente es un entrenador o un jugador
-            if(equipo.EquipoIdDBC==950502)
-            {
-                entrenador.EquipoIdDBC=950502;
-            }
-
             if(arch.at(pos_memoria++)!=2)
             {
 
@@ -533,10 +452,10 @@ void MainWindow::on_btn_procesar_clicked()
             for(temp=0;temp<5;temp++){
                 jugador.DemarcacionesSecundarias.append(arch.at(pos_memoria++));}
 
-            //------------------------ que coño es esto
-            pos_memoria++; //lo mismo que el número de camiseta
-            pos_memoria++; // hay un byte 0x00
-            //-----------------------------------------------------
+            // Posición del jugador en la pantalla ALINEACIÓN (1..N, único
+            // por plantilla; suele coincidir con el dorsal). Ver jugador.h.
+            jugador.PosicionEnAlineacion=arch.at(pos_memoria++);
+            pos_memoria++; // byte separador 0x00
 
 
             jugador.Extranjero=arch.at(pos_memoria++);
@@ -654,16 +573,16 @@ void MainWindow::on_btn_procesar_clicked()
 
         //FIN BUCLE RASTREO DE ARCHIVOS
     }
+    progreso.setValue(lista_archivos.size());
 
-    for(num_boton_eq=0; num_boton_eq<20;num_boton_eq++)
+    for(num_boton_eq=0; num_boton_eq<20 && num_boton_eq<lista_equipos.size(); num_boton_eq++)
     {
-        QImage im_interface(":/img/img/dataempty.bmp");
+        QImage im_interface = imagenVacia;
         if(!lista_equipos.at(num_boton_eq).miniesc.isEmpty())
-        { im_interface = transf_minifoto.miniesc2QImage(lista_equipos.at(num_boton_eq).miniesc);}
+            im_interface = transf_minifoto.miniesc2QImage(lista_equipos.at(num_boton_eq).miniesc);
 
         list_eq_buttons.at(num_boton_eq)->setEQname(lista_equipos.at(num_boton_eq).NombreLargo);
         list_eq_buttons.at(num_boton_eq)->setIconEQ(im_interface);
-
     }
 
     punteros.clear();
@@ -741,29 +660,25 @@ void MainWindow::mouseOnEqButton(int id,char *EQ_str)
 
 void MainWindow::on_horizontalScrollBar_valueChanged(int value)
 {
-    quint16 num_boton_eq;
-    quint16 init_eq = value*20;
-    if(init_eq<lista_equipos.size())
+    const int init_eq = value*20;
+    if(init_eq>=lista_equipos.size())
+        return;
+
+    for(int num_boton_eq=0; num_boton_eq<list_eq_buttons.size(); num_boton_eq++)
     {
-        for(num_boton_eq=0; num_boton_eq<20;num_boton_eq++)
+        const int idx = init_eq + num_boton_eq;
+        if(idx < lista_equipos.size())
         {
-            if((init_eq+num_boton_eq)<lista_equipos.size())
-            {
-                QImage im_interface(":/img/img/dataempty.bmp");
-                if(!lista_equipos.at(num_boton_eq+init_eq).miniesc.isEmpty())
-                {im_interface = transf_minifoto.miniesc2QImage(lista_equipos.at(num_boton_eq+init_eq).miniesc);}
-                list_eq_buttons.at(num_boton_eq)->setEQname(lista_equipos.at(num_boton_eq+init_eq).NombreLargo);
-                list_eq_buttons.at(num_boton_eq)->setIconEQ(im_interface);
-            }
-            else
-            {
-                QImage im(":/img/img/dataempty.bmp");
-                list_eq_buttons.at(num_boton_eq)->setEQname("VACIO");
-                list_eq_buttons.at(num_boton_eq)->setIconEQ(im);
-
-
-            }
-
+            QImage im_interface = imagenVacia;
+            if(!lista_equipos.at(idx).miniesc.isEmpty())
+                im_interface = transf_minifoto.miniesc2QImage(lista_equipos.at(idx).miniesc);
+            list_eq_buttons.at(num_boton_eq)->setEQname(lista_equipos.at(idx).NombreLargo);
+            list_eq_buttons.at(num_boton_eq)->setIconEQ(im_interface);
+        }
+        else
+        {
+            list_eq_buttons.at(num_boton_eq)->setEQname(tr("VACIO"));
+            list_eq_buttons.at(num_boton_eq)->setIconEQ(imagenVacia);
         }
     }
 }
@@ -807,11 +722,6 @@ void MainWindow::on_tableView_equipos_doubleClicked(const QModelIndex &index)
 
     DialogEquipos dialog_equipo;
     dialog_equipo.setModal(true);
-    //identificar qué equipo es
-    for(int i=0;i<lista_equipos.size();i++)
-    {
-
-    }
     int num_eq=index.row();
     if(num_eq<lista_equipos.size())
     {
@@ -835,26 +745,37 @@ void MainWindow::on_tableView_equipos_doubleClicked(const QModelIndex &index)
 
 void MainWindow::on_pushButton_2_clicked()
 {
-    QString fileName = QFileDialog::getExistingDirectory(this,"Carpeta para salvar estructura");
-    quint8 err=0;
+    QString fileName = QFileDialog::getExistingDirectory(this,
+                                                         tr("Carpeta para salvar estructura"));
+    if(fileName.isEmpty())
+        return;
+
+    QStringList fallos;
     for(int i=0;i<lista_equipos.size();i++)
     {
-        quint8 err=db.guardar_equipo(lista_equipos.at(i),fileName);
-        if(err==0)
+        if(db.guardar_equipo(lista_equipos.at(i),fileName)==0)
         {
-            QMessageBox::critical(this, tr("FUTBOL RELOAD"),
-                                  tr("ERROR AL ESCRIBIR\n"
-                                     "Archivo EQ").arg(QString::number(lista_equipos.at(i).EquipoIdDBC)),
-                                  QMessageBox::Ok);
+            fallos << QString("EQ%1.DBC")
+                        .arg(QString::number(lista_equipos.at(i).EquipoIdDBC),6,QChar('0'));
         }
     }
 
-    //guardar estrellas mundiales
-    err=db.guardar_estrellas(estrellas,fileName);
+    if(db.guardar_estrellas(estrellas,fileName)==0)
+        fallos << tr("Estrellas mundiales");
+
+    if(fallos.isEmpty())
+    {
         QMessageBox::information(this, tr("FUTBOL RELOAD"),
-                              tr("GUARDADO\n"
-                                 "CAMBIOS"),
-                              QMessageBox::Ok);
+                                 tr("Cambios guardados correctamente en\n%1/%2")
+                                     .arg(fileName, db.carpetaSalida()));
+    }
+    else
+    {
+        QMessageBox::critical(this, tr("FUTBOL RELOAD"),
+                              tr("No se pudieron escribir %1 archivo(s):\n%2")
+                                  .arg(fallos.size())
+                                  .arg(fallos.join("\n")));
+    }
 
 }
 
@@ -978,7 +899,7 @@ const unsigned char cosas_bbdd_SEGUNDA_B[177] =
 };
 
 QByteArray qbyte_ant;
-int MainWindow::procesar_datos_equipo(EQUIPO *eq, QByteArray arch,quint32 *pos)
+int MainWindow::procesar_datos_equipo(EQUIPO *eq, const QByteArray &arch, quint32 *pos)
 {
     quint32 size_cad;
     EQUIPO equipo;
@@ -1086,52 +1007,66 @@ int MainWindow::procesar_datos_equipo(EQUIPO *eq, QByteArray arch,quint32 *pos)
     for(temp=0;temp<size_cad;temp++){equipo.nombre_corto_mayusculas.append(db.descodificar_caracter(arch.at(pos_memoria++)));}
 
     //leer las estadisticas
-    QByteArray buscar_offset;
-    quint32 offset;
-    buscar_offset.clear();
-    QChar letra;
-    uint8_t letra_utf;
+    quint32 offset=0;
 
 
     if(equipo.isBBDD_neg==0)
     {
-        //buscar "-15-16"
-        for(temp=0;temp<500;temp++)
+        // --- BLOQUE DE ESTADÍSTICAS / PALMARÉS ------------------------------
+        // Estructura EXACTA (verificada byte a byte contra los 234 DBC de
+        // PC Fútbol 4.0 y compatible con 4.5):
+        //
+        //   [202 bytes fijos]  pares u16 LE por competición + campos varios
+        //   [1 byte  ]         longitud L de la etiqueta de temporadas
+        //   [L bytes ]         etiqueta codificada (" 2- 3- ... -18-19" en los
+        //                      equipos con historial largo; "-" o "--" en los
+        //                      equipos modestos)
+        //   [47 bytes]         puesto por temporada (1 byte cada uno)
+        //
+        // La versión anterior del editor localizaba el final del bloque
+        // buscando el texto "-17"/"-18"/"-19". Ese atajo FALLA en PC Fútbol
+        // 4.0: 22 de los 43 equipos con base de datos (Albacete, Logroñés,
+        // Eibar…) tienen etiquetas cortas del tipo "--" y el editor abortaba
+        // con "No se encontró la marca de temporadas". Con la estructura real
+        // no hace falta ninguna heurística y funciona en las dos versiones.
+        const quint32 CAB_STATS  = 202;   // parte fija
+        const quint32 COLA_STATS = 47;    // puestos por temporada
+
+        if(pos_memoria + CAB_STATS >= (quint32)arch.size())
         {
-            letra=db.descodificar_caracter(arch.at(pos_memoria+temp));
-            letra_utf=letra.toLatin1();
-         buscar_offset.append(letra_utf);
+            QMessageBox::warning(this, tr("FUTBOL RELOAD"),
+                                 tr("Bloque de estadísticas truncado en el equipo %1.")
+                                     .arg(equipo.EquipoIdDBC));
+            return 1;
+        }
+        const quint32 len_etiqueta = (quint8)arch.at(pos_memoria + CAB_STATS);
+        offset = CAB_STATS + 1 + len_etiqueta + COLA_STATS;
+
+        if(pos_memoria + offset >= (quint32)arch.size())
+        {
+            QMessageBox::warning(this, tr("FUTBOL RELOAD"),
+                                 tr("Bloque de estadísticas incoherente en el equipo %1.")
+                                     .arg(equipo.EquipoIdDBC));
+            return 1;
         }
 
-        if(equipo.EquipoIdDBC==950203)
-        {
-            equipo.EquipoIdDBC=950203;
-        }
-        if(buscar_offset.indexOf("-17")!=(-1))
-        {offset=buscar_offset.indexOf("-17");}
-
-        if(buscar_offset.indexOf("-18")!=(-1))
-        {offset=buscar_offset.indexOf("-18");}
-
-        if(buscar_offset.indexOf("-19")!=(-1))
-        {offset=buscar_offset.indexOf("-19");}
-        offset+=3;
-        offset+=47;
-//        offset+=3; //byte siguiente al último caracter
-//        offset+=45;//byte 0x02
-//        if(equipo.EquipoIdDBC>=950203)
-//        {
-//            offset+=2;
-//        }
-        //offset+=44;//byte 0x02
         for(temp=0;temp<offset;temp++){
             equipo.cosas_bbdd.append(arch.at(pos_memoria));
             pos_memoria++;
         }
+
+        // Comprobación barata: justo detrás debe venir el 0x02 del entrenador.
+        if((quint8)arch.at(pos_memoria)!=0x02)
+        {
+            QMessageBox::warning(this, tr("FUTBOL RELOAD"),
+                                 tr("Tras las estadísticas del equipo %1 no aparece\n"
+                                    "la marca 0x02 de entrenador.")
+                                     .arg(equipo.EquipoIdDBC));
+            return 1;
+        }
     }
     else
-    //{for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
-     {for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
+    {for(temp=0;temp<177;temp++){equipo.cosas_bbdd.append(arch.at(pos_memoria++));}}
 
 
     *eq=equipo;
@@ -1227,41 +1162,86 @@ void MainWindow::on_pushButton_estrellas_clicked()
 
 }
 
-void MainWindow::on_btnExportarImagenes_clicked()
+void MainWindow::exportarImagenes()
 {
-    QString carpetaJuego = QFileDialog::getExistingDirectory(
-        this, "Selecciona la carpeta del juego (donde está PCFUTBOL.DAT)");
-    if (carpetaJuego.isEmpty()) return;
+    // Si ya hay una ruta del juego escrita arriba, se usa esa y no se vuelve a
+    // preguntar. Sólo se pide si está vacía o no parece una carpeta del juego.
+    QString carpetaJuego = rutaJuegoActual();
+    if (carpetaJuego.isEmpty())
+    {
+        carpetaJuego = QFileDialog::getExistingDirectory(
+            this, "Selecciona la carpeta del juego (donde está PCFUTBOL.DAT)");
+        if (carpetaJuego.isEmpty()) return;
+    }
 
     QString carpetaSalida = QFileDialog::getExistingDirectory(
         this, "Selecciona (o crea) la carpeta donde guardar las imágenes");
     if (carpetaSalida.isEmpty()) return;
 
-    setCursor(Qt::WaitCursor);
-    auto r = PCFutbolImagenes::exportarImagenes(carpetaJuego, carpetaSalida);
-    unsetCursor();
+    QProgressDialog progreso(tr("Exportando imágenes…"), tr("Cancelar"), 0, 100, this);
+    progreso.setWindowTitle(tr("Exportar imágenes"));
+    progreso.setWindowModality(Qt::WindowModal);
+    progreso.setMinimumDuration(0);
+    progreso.setValue(0);
+
+    auto avance = [&progreso](int hechos, int total, const QString &detalle) -> bool {
+        if (total > 0)
+        {
+            progreso.setMaximum(total);
+            progreso.setValue(hechos);
+        }
+        progreso.setLabelText(detalle);
+        QApplication::processEvents();
+        return !progreso.wasCanceled();
+    };
+
+    auto r = PCFutbolImagenes::exportarImagenes(carpetaJuego, carpetaSalida, avance);
+    // Formatos añadidos: sprites .EMP, fondo por tiles (.BLO/.BIN) y textos .GRC
+    PCFutbolExtras::Resultado x;
+    if (!progreso.wasCanceled())
+    {
+        progreso.reset();
+        progreso.setLabelText(tr("Exportando sprites, fondos y textos…"));
+        progreso.setValue(0);
+        PCFutbolExtras::exportarTodo(carpetaJuego, carpetaSalida, x, avance);
+    }
+    progreso.close();
 
     QString resumen = QString(
         "Ficheros escaneados: %1\n"
         "Ficheros con imagen reconocida: %2\n"
-        "Imágenes extraídas: %3\n\n"
-        "Manifest: %4")
+        "Imágenes extraídas: %3\n"
+        "Frames de sprites (.EMP): %4\n"
+        "Fondos del campo (.BLO/.BIN): %5\n"
+        "Textos de interfaz (.GRC): %6\n\n"
+        "Manifest: %7\n"
+        "Los textos están en la subcarpeta TEXTOS (uno por fichero .GRC).")
         .arg(r.ficherosEscaneados)
         .arg(r.ficherosConImagen)
         .arg(r.imagenesExtraidas)
+        .arg(x.spritesExportados)
+        .arg(x.fondosExportados)
+        .arg(x.textosExportados)
         .arg(r.manifestPath);
 
-    if (!r.errores.isEmpty())
-        resumen += "\n\nAvisos:\n" + r.errores.join("\n");
+    const QStringList avisos = r.errores + x.errores;
+    if (!avisos.isEmpty())
+        resumen += "\n\nAvisos:\n" + avisos.join("\n");
 
     QMessageBox::information(this, "Exportación completada", resumen);
 }
 
-void MainWindow::on_btnImportarImagenes_clicked()
+void MainWindow::importarImagenes()
 {
-    QString carpetaJuego = QFileDialog::getExistingDirectory(
-        this, "Selecciona la carpeta ORIGINAL del juego (sin modificar)");
-    if (carpetaJuego.isEmpty()) return;
+    // Misma idea que en exportar: si la ruta del juego ya está puesta arriba,
+    // se reutiliza como carpeta ORIGINAL sin volver a preguntar.
+    QString carpetaJuego = rutaJuegoActual();
+    if (carpetaJuego.isEmpty())
+    {
+        carpetaJuego = QFileDialog::getExistingDirectory(
+            this, "Selecciona la carpeta ORIGINAL del juego (sin modificar)");
+        if (carpetaJuego.isEmpty()) return;
+    }
 
     QString carpetaImagenes = QFileDialog::getExistingDirectory(
         this, "Selecciona la carpeta de imágenes (con manifest.csv, editadas o no)");
@@ -1271,20 +1251,167 @@ void MainWindow::on_btnImportarImagenes_clicked()
         this, "Selecciona (vacía) dónde crear la copia nueva y modificada del juego");
     if (carpetaNueva.isEmpty()) return;
 
-    setCursor(Qt::WaitCursor);
-    auto r = PCFutbolImagenes::importarImagenes(carpetaJuego, carpetaImagenes, carpetaNueva);
-    unsetCursor();
+    QProgressDialog progreso(tr("Copiando el juego original…"), tr("Cancelar"), 0, 100, this);
+    progreso.setWindowTitle(tr("Importar imágenes"));
+    progreso.setWindowModality(Qt::WindowModal);
+    progreso.setMinimumDuration(0);
+    progreso.setValue(0);
+    QApplication::processEvents();
+
+    auto avance = [&progreso](int hechos, int total, const QString &detalle) -> bool {
+        if (total > 0)
+        {
+            progreso.setMaximum(total);
+            progreso.setValue(hechos);
+        }
+        progreso.setLabelText(detalle);
+        QApplication::processEvents();
+        return !progreso.wasCanceled();
+    };
+
+    auto r = PCFutbolImagenes::importarImagenes(carpetaJuego, carpetaImagenes,
+                                                carpetaNueva, avance);
+    // Se reinyecta sobre la copia YA creada por importarImagenes()
+    PCFutbolExtras::Resultado x;
+    if ((r.errores.isEmpty() || !r.carpetaNueva.isEmpty()) && !progreso.wasCanceled())
+    {
+        progreso.reset();
+        progreso.setLabelText(tr("Reinyectando sprites, fondos y textos…"));
+        progreso.setValue(0);
+        PCFutbolExtras::importarTodo(carpetaNueva, carpetaImagenes, x, avance);
+    }
+    progreso.close();
 
     QString resumen = QString(
         "Ficheros reescritos: %1\n"
-        "Imágenes reinyectadas: %2\n\n"
-        "Copia nueva del juego en:\n%3")
+        "Imágenes reinyectadas: %2\n"
+        "Frames de sprites (.EMP): %3\n"
+        "Fondos del campo (.BLO/.BIN): %4\n"
+        "Textos de interfaz (.GRC): %5\n\n"
+        "Copia nueva del juego en:\n%6")
         .arg(r.ficherosReescritos)
         .arg(r.imagenesReinyectadas)
+        .arg(x.spritesImportados)
+        .arg(x.fondosImportados)
+        .arg(x.textosImportados)
         .arg(r.carpetaNueva);
+
+    const QStringList avisos = r.errores + x.errores;
+    if (!avisos.isEmpty())
+        resumen += "\n\nAvisos:\n" + avisos.join("\n");
+
+    QMessageBox::information(this, "Importación completada", resumen);
+}
+
+// ===========================================================================
+// SONIDOS
+// ===========================================================================
+void MainWindow::exportarSonidos()
+{
+    QString carpetaJuego = rutaJuegoActual();   // reutiliza la ruta ya elegida
+    if (carpetaJuego.isEmpty())
+    {
+        carpetaJuego = QFileDialog::getExistingDirectory(
+            this, "Selecciona la carpeta del juego (la que contiene SONIDOS)");
+        if (carpetaJuego.isEmpty()) return;
+    }
+
+    QString carpetaSalida = QFileDialog::getExistingDirectory(
+        this, "Selecciona (o crea) la carpeta donde guardar los WAV");
+    if (carpetaSalida.isEmpty()) return;
+
+    setCursor(Qt::WaitCursor);
+    PCFutbolExtras::Resultado r;
+    PCFutbolExtras::exportarSonidos(carpetaJuego, carpetaSalida, r);
+    unsetCursor();
+
+    QString resumen = QString(
+        "Sonidos exportados: %1\n\n"
+        "Están en la subcarpeta SONIDOS de:\n%2\n\n"
+        "Son WAV mono de 8 bits a 11.025 Hz, con las muestras originales\n"
+        "intactas. Puedes editarlos con cualquier programa de audio.")
+        .arg(r.sonidosExportados)
+        .arg(carpetaSalida);
 
     if (!r.errores.isEmpty())
         resumen += "\n\nAvisos:\n" + r.errores.join("\n");
 
-    QMessageBox::information(this, "Importación completada", resumen);
+    if (r.sonidosExportados == 0 && r.errores.isEmpty())
+        resumen = "No se ha encontrado ningún .RAW en esa carpeta.";
+
+    QMessageBox::information(this, "Exportación de sonidos", resumen);
+}
+
+void MainWindow::importarSonidos()
+{
+    QString carpetaJuego = QFileDialog::getExistingDirectory(
+        this, "Selecciona la carpeta del juego SOBRE LA QUE ESCRIBIR (¡se modifica!)");
+    if (carpetaJuego.isEmpty()) return;
+
+    if (QMessageBox::question(this, "Confirmar",
+            "Se van a sobrescribir los ficheros .RAW de:\n" + carpetaJuego +
+            "\n\nHaz una copia de seguridad antes si no la tienes.\n\n¿Continuar?",
+            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+
+    QString carpetaSonidos = QFileDialog::getExistingDirectory(
+        this, "Selecciona la carpeta que contiene la subcarpeta SONIDOS con los WAV");
+    if (carpetaSonidos.isEmpty()) return;
+
+    setCursor(Qt::WaitCursor);
+    PCFutbolExtras::Resultado r;
+    PCFutbolExtras::importarSonidos(carpetaJuego, carpetaSonidos, r);
+    unsetCursor();
+
+    QString resumen = QString("Sonidos reinyectados: %1").arg(r.sonidosImportados);
+    if (!r.errores.isEmpty())
+        resumen += "\n\nAvisos:\n" + r.errores.join("\n");
+
+    QMessageBox::information(this, "Importación de sonidos", resumen);
+}
+
+
+// ---------------------------------------------------------------------------
+// Detección de la versión de PC Fútbol instalada en la carpeta indicada.
+//
+// Criterios, en orden de fiabilidad:
+//   1) COMFILE.DAT empieza con la cadena ASCII "PC FUTBOL v4.0" / "v4.5".
+//   2) Presencia del ejecutable FUTBOL4.EXE (4.0) o FUTBOL45.EXE (4.5).
+//   3) Nombre del fichero de Estrellas Mundiales: EQ959900.DBC (4.0) frente a
+//      EQ959901.DBC (4.5, donde EQ959900 tiene otro cometido).
+// Si nada concluye, se asume 4.5 (comportamiento histórico del editor).
+// ---------------------------------------------------------------------------
+int MainWindow::detectarVersion(const QString &rutaJuego)
+{
+    QFile com(rutaJuego + "/COMFILE.DAT");
+    if(com.open(QIODevice::ReadOnly))
+    {
+        const QByteArray cab = com.read(64);
+        com.close();
+        if(cab.contains("v4.0")) return 40;
+        if(cab.contains("v4.5")) return 45;
+    }
+
+    if(QFile::exists(rutaJuego + "/FUTBOL4.EXE"))  return 40;
+    if(QFile::exists(rutaJuego + "/FUTBOL45.EXE")) return 45;
+
+    if(QFile::exists(rutaJuego + "/DBDAT/EQ959901.DBC")) return 45;
+    if(QFile::exists(rutaJuego + "/DBDAT/EQ959900.DBC")) return 40;
+
+    return 45;
+}
+
+
+// ---------------------------------------------------------------------------
+// Devuelve la carpeta del juego que el usuario ya ha elegido arriba (lineEdit),
+// siempre que exista y tenga pinta de serlo (contiene DBDAT). Si no, devuelve
+// una cadena vacía y el llamante pedirá la carpeta con un diálogo.
+// ---------------------------------------------------------------------------
+QString MainWindow::rutaJuegoActual() const
+{
+    const QString ruta = ui->lineEdit->text().trimmed();
+    if (ruta.isEmpty()) return QString();
+    if (!QDir(ruta).exists())  return QString();
+    if (!QDir(ruta + "/DBDAT").exists()) return QString();
+    return ruta;
 }

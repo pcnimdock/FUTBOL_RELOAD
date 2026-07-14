@@ -6,6 +6,36 @@ EQUIPO::EQUIPO()
 
 }
 
+quint16 EQUIPO::escudoPosX() const
+{
+    if(Bytes_unknow3_5bytes.size()<2) return 0;
+    return quint16(quint8(Bytes_unknow3_5bytes.at(0)))
+         | quint16(quint8(Bytes_unknow3_5bytes.at(1)))<<8;
+}
+
+quint16 EQUIPO::escudoPosY() const
+{
+    if(Bytes_unknow3_5bytes.size()<4) return 0;
+    return quint16(quint8(Bytes_unknow3_5bytes.at(2)))
+         | quint16(quint8(Bytes_unknow3_5bytes.at(3)))<<8;
+}
+
+quint8 EQUIPO::escudoByteExtra() const
+{
+    if(Bytes_unknow3_5bytes.size()<5) return 0;
+    return quint8(Bytes_unknow3_5bytes.at(4));
+}
+
+void EQUIPO::setEscudoPos(quint16 x, quint16 y)
+{
+    if(Bytes_unknow3_5bytes.size()<5)
+        Bytes_unknow3_5bytes = QByteArray(5, '\0');
+    Bytes_unknow3_5bytes[0] = char(x & 0xFF);
+    Bytes_unknow3_5bytes[1] = char((x >> 8) & 0xFF);
+    Bytes_unknow3_5bytes[2] = char(y & 0xFF);
+    Bytes_unknow3_5bytes[3] = char((y >> 8) & 0xFF);
+}
+
 void EQUIPO::clear()
 {
     EquipoIdDBC=0;

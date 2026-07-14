@@ -11,14 +11,11 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>FUTBOL RELOADER</string>
+   <string>Fútbol Reload — Editor de PC Fútbol 4.0 / 4.5</string>
   </property>
   <property name="windowIcon">
    <iconset resource="resource.qrc">
     <normaloff>:/img/img/logo.png</normaloff>:/img/img/logo.png</iconset>
-  </property>
-  <property name="styleSheet">
-   <string notr="true">background-color: rgb(162, 162, 162);</string>
   </property>
   <property name="toolButtonStyle">
    <enum>Qt::ToolButtonFollowStyle</enum>
@@ -56,7 +53,7 @@ border-bottom: 4px rgb(24, 105, 20);</string>
          <number>6</number>
         </property>
         <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:20pt; font-weight:600; color:#ffffff;&quot;&gt;LOS EQUIPOS&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:18pt; font-weight:600;&quot;&gt;LOS EQUIPOS&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
        </widget>
       </item>
@@ -274,9 +271,6 @@ border-bottom: 4px rgb(24, 105, 20);</string>
       </item>
       <item>
        <widget class="QScrollBar" name="horizontalScrollBar">
-        <property name="styleSheet">
-         <string notr="true">background-color: rgb(128, 128, 128);</string>
-        </property>
         <property name="maximum">
          <number>11</number>
         </property>
@@ -305,7 +299,7 @@ font: bold 75 16pt &quot;DejaVu Sans&quot;;
 </string>
         </property>
         <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:16pt; font-weight:600; color:#ffffff;&quot;&gt;EMPTY&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt; font-weight:600;&quot;&gt;—&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
         <property name="margin">
          <number>0</number>
@@ -321,7 +315,7 @@ border-bottom: 4px rgb(24, 105, 20);
 </string>
         </property>
         <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:20pt; font-weight:600; color:#ffffff;&quot;&gt;LOS PROTAGONISTAS&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:18pt; font-weight:600;&quot;&gt;LOS PROTAGONISTAS&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
        </widget>
       </item>
@@ -351,28 +345,20 @@ border-bottom: 4px rgb(24, 105, 20);
             <item>
              <widget class="QLabel" name="label_4">
               <property name="styleSheet">
-               <string notr="true">background-color:#0000b3;</string>
+               <string notr="true">background-color: rgb(24, 105, 20); border-radius: 4px; padding: 3px;</string>
               </property>
               <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600; color:#ffffff;&quot;&gt;BUSCAR JUGADOR&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Buscar jugador&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_2">
-              <property name="styleSheet">
-               <string notr="true">background-color: rgb(255, 255, 255);</string>
-              </property>
-             </widget>
+             <widget class="QLineEdit" name="lineEdit_2"/>
             </item>
            </layout>
           </item>
           <item>
            <widget class="QTableView" name="tableView_jugadores">
-            <property name="styleSheet">
-             <string notr="true">background-color: rgb(255, 255, 255);
-QHeaderView::section { color:white; background-color:#232326; }</string>
-            </property>
             <property name="editTriggers">
              <set>QAbstractItemView::NoEditTriggers</set>
             </property>
@@ -391,27 +377,20 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
             <item>
              <widget class="QLabel" name="label_5">
               <property name="styleSheet">
-               <string notr="true">background-color:#0000b3;</string>
+               <string notr="true">background-color: rgb(24, 105, 20); border-radius: 4px; padding: 3px;</string>
               </property>
               <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600; color:#ffffff;&quot;&gt;BUSCAR EQUIPO&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Buscar equipo&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_3">
-              <property name="styleSheet">
-               <string notr="true">background-color: rgb(255, 255, 255);</string>
-              </property>
-             </widget>
+             <widget class="QLineEdit" name="lineEdit_3"/>
             </item>
            </layout>
           </item>
           <item>
            <widget class="QTableView" name="tableView_equipos">
-            <property name="styleSheet">
-             <string notr="true">background-color: rgb(255, 255, 255);</string>
-            </property>
             <property name="editTriggers">
              <set>QAbstractItemView::NoEditTriggers</set>
             </property>
@@ -432,7 +411,7 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
            </sizepolicy>
           </property>
           <property name="text">
-           <string>Ruta FUTBOL4</string>
+           <string>Ruta del juego…</string>
           </property>
          </widget>
         </item>
@@ -443,9 +422,6 @@ QHeaderView::section { color:white; background-color:#232326; }</string>
             <horstretch>40</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">background-color: rgb(255, 255, 255);</string>
           </property>
          </widget>
         </item>

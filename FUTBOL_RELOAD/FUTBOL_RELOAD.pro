@@ -29,6 +29,7 @@ SOURCES += \
     table_model.cpp \
     transform_minifoto.cpp \
     pcfutbol_imagenes.cpp \
+    pcfutbol_extras.cpp \
     pcfutbol_equipacion.cpp \
     dialog_equipacion.cpp \
     mybutton.cpp
@@ -47,6 +48,7 @@ HEADERS += \
     table_model.h \
     transform_minifoto.h \
     pcfutbol_imagenes.h \
+    pcfutbol_extras.h \
     pcfutbol_equipacion.h \
     paleta_kits.h \
     dialog_equipacion.h \
