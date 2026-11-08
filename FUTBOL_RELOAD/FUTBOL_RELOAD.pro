@@ -16,6 +16,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    pcfutbol_ligas.cpp \
+    dialog_ligas.cpp \
     bbdd_futbol.cpp \
     dialog_estrellas_mundiales.cpp \
     dialog_jugador.cpp \
@@ -35,6 +37,8 @@ SOURCES += \
     mybutton.cpp
 
 HEADERS += \
+    pcfutbol_ligas.h \
+    dialog_ligas.h \
     bbdd_futbol.h \
     dialog_estrellas_mundiales.h \
     dialog_jugador.h \

@@ -14,7 +14,9 @@ QUÉ HACE
   cada temporada el propio juego reordena la tabla en memoria con los
   ascensos y descensos). Esta herramienta lee y modifica esa tabla en:
 
-      PCMANAG.DAT   (modo mánager)        tabla única terminada en 0xFFFF
+      PCMANAG.DAT   (modo mánager)        lista larga terminada en 0xFFFF
+                                          + tabla de 42 (Primera+Segunda)
+                                          con la que arranca la partida
       PROMANAG.DAT  (modo ProManager)     igual que PCMANAG
       PCFUTBOL.DAT  (base de datos)       22 IDs, 0xFFFF, 20 IDs, 0xFFFF
 
@@ -143,6 +145,27 @@ def buscar_tabla_pcfutbol(d):
     return encontrados
 
 
+def buscar_tablas_42(d, primera, segunda, excluir):
+    """Tablas de 42 IDs (22 de Primera + 20 de Segunda, en cualquier orden
+    dentro de cada división) que no forman parte de la lista larga. Están en
+    PCMANAG (0xA3B24 en memoria) y PROMANAG (0x981A0; allí Albacete y
+    Valladolid van al revés)."""
+    sp, ss = set(primera), set(segunda)
+    encontrados = []
+    i = 0
+    while i <= len(d) - 4 * 42:
+        if i in excluir:
+            i += 4 * 42
+            continue
+        vals = struct.unpack_from('<42I', d, i)
+        if set(vals[:N_PRIMERA]) == sp and set(vals[N_PRIMERA:]) == ss:
+            encontrados.append((i, list(vals)))
+            i += 4 * 42
+            continue
+        i += 1
+    return encontrados
+
+
 EJECUTABLES = [
     ('PCMANAG.DAT', 'manager'),
     ('PROMANAG.DAT', 'manager'),
@@ -163,7 +186,7 @@ class Tabla:
         return self.ids[N_PRIMERA:N_PRIMERA + N_SEGUNDA]
 
     def bytes_nuevos(self, ids):
-        if self.tipo == 'manager':
+        if self.tipo in ('manager', 'tabla42'):
             return struct.pack('<%dI' % len(ids), *ids)
         p, s = ids[:N_PRIMERA], ids[N_PRIMERA:N_PRIMERA + N_SEGUNDA]
         return struct.pack('<%dI' % (N_PRIMERA + 1 + N_SEGUNDA),
@@ -184,6 +207,10 @@ def leer_tablas(juego):
                      'No se toca nada.' % (nombre, len(enc)))
         off, ids = enc[0]
         tablas.append(Tabla(ruta, tipo, off, ids))
+        if tipo == 'manager':
+            for off42, ids42 in buscar_tablas_42(d, ids[:N_PRIMERA],
+                                                 ids[N_PRIMERA:N_PRIMERA + N_SEGUNDA], {off}):
+                tablas.append(Tabla(ruta, 'tabla42', off42, ids42))
     if not tablas:
         sys.exit('ERROR: no se encuentra PCMANAG.DAT / PROMANAG.DAT / PCFUTBOL.DAT en ' + juego)
     return tablas
@@ -193,7 +220,7 @@ def comprobar_coherencia(tablas):
     ref = tablas[0]
     ok = True
     for t in tablas[1:]:
-        if t.primera != ref.primera or t.segunda != ref.segunda:
+        if sorted(t.primera) != sorted(ref.primera) or sorted(t.segunda) != sorted(ref.segunda):
             print('AVISO: %s no tiene la misma Primera/Segunda que %s'
                   % (os.path.basename(t.ruta), os.path.basename(ref.ruta)))
             ok = False
@@ -275,24 +302,17 @@ def validar_division(juego, ids, etiqueta):
 def cmd_intercambiar(a):
     tablas = leer_tablas(a.juego)
     comprobar_coherencia(tablas)
-    nuevas = []
     for t in tablas:
-        ids = list(t.ids)
-        if a.id_a not in ids or a.id_b not in ids:
-            if t.tipo == 'pcfutbol':
-                # La tabla de PCFUTBOL sólo tiene Primera y Segunda: si uno de los
-                # dos viene del resto, se sustituye directamente.
-                if a.id_a in ids:
-                    ids[ids.index(a.id_a)] = a.id_b
-                elif a.id_b in ids:
-                    ids[ids.index(a.id_b)] = a.id_a
-                nuevas.append(ids)
-                continue
+        if t.tipo == 'manager' and (a.id_a not in t.ids or a.id_b not in t.ids):
             sys.exit('ERROR: %d o %d no está en la tabla de %s. Los IDs válidos son los de '
                      '"listar".' % (a.id_a, a.id_b, os.path.basename(t.ruta)))
-        ia, ib = ids.index(a.id_a), ids.index(a.id_b)
-        ids[ia], ids[ib] = ids[ib], ids[ia]
-        nuevas.append(ids)
+    # Se intercambian TODAS las apariciones en TODAS las tablas (en la lista
+    # larga algunos equipos de Segunda B están dos veces). Las tablas de 42
+    # y la de PCFUTBOL sólo tienen Primera y Segunda: si uno de los dos viene
+    # de Segunda B, simplemente se sustituye.
+    def cambiar(x):
+        return a.id_b if x == a.id_a else (a.id_a if x == a.id_b else x)
+    nuevas = [[cambiar(x) for x in t.ids] for t in tablas]
     ref = nuevas[0]
     errores = validar_division(a.juego, ref[:N_PRIMERA], 'Primera') + \
         validar_division(a.juego, ref[N_PRIMERA:N_PRIMERA + N_SEGUNDA], 'Segunda')
@@ -328,7 +348,7 @@ def cmd_fijar(a):
             # pasan al principio del resto
             resto = [i for i in t.ids if i not in elegidos]
             nuevas.append(elegidos + resto)
-        else:
+        else:  # 'tabla42' y 'pcfutbol': sólo Primera + Segunda
             nuevas.append(elegidos)
     escribir(tablas, nuevas, a.juego)
 

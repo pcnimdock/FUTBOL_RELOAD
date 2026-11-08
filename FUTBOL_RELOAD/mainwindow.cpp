@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "dialog_ligas.h"
 #include <QProgressDialog>
 #include <QApplication>
 #include "ui_mainwindow.h"
@@ -74,6 +75,22 @@ MainWindow::MainWindow(QWidget *parent)
     layoutBotonesImagenes->addWidget(btnImportar);
     layoutBotonesImagenes->addWidget(btnExportarSon);
     layoutBotonesImagenes->addWidget(btnImportarSon);
+
+    // --- Composición de ligas (qué equipos juegan en Primera/Segunda) ---
+    QPushButton *btnLigas = new QPushButton("Composición de ligas", this);
+    btnLigas->setObjectName("btnComposicionLigas");
+    btnLigas->setToolTip("Mover equipos entre Primera, Segunda y Segunda B");
+    layoutBotonesImagenes->addWidget(btnLigas);
+    connect(btnLigas, &QPushButton::clicked, this, [this]() {
+        if (ui->lineEdit->text().isEmpty())
+        {
+            QMessageBox::warning(this, tr("FUTBOL RELOAD"),
+                                 tr("Selecciona primero la carpeta del juego."));
+            return;
+        }
+        DialogLigas dlg(ui->lineEdit->text(), this);
+        dlg.exec();
+    });
 
     // Los añade al final del layout principal de la ventana central.
     if (auto *layoutPrincipal = qobject_cast<QVBoxLayout*>(centralWidget()->layout())) {

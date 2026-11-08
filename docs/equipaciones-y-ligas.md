@@ -10,7 +10,9 @@ Código relacionado:
 |---|---|
 | `FUTBOL_RELOAD/pcfutbol_equipacion.{h,cpp}` | Zonas del jugador, relleno con degradado, guardado seguro |
 | `FUTBOL_RELOAD/dialog_equipacion.{h,cpp}` | Editor con vista previa del jugador en el partido |
-| `FUTBOL_RELOAD/tools/ligas_pcf.py` | Elegir los equipos de Primera y Segunda |
+| `FUTBOL_RELOAD/pcfutbol_ligas.{h,cpp}` | Localiza y modifica las tablas de composición de ligas |
+| `FUTBOL_RELOAD/dialog_ligas.{h,cpp}` | Ventana «Composición de ligas» del editor |
+| `FUTBOL_RELOAD/tools/ligas_pcf.py` | Lo mismo por línea de comandos |
 | `FUTBOL_RELOAD/tools/le_a_binario.py` | Convierte un ejecutable LE (DOS/4GW) en imágenes planas para desensamblar |
 
 ---
@@ -85,14 +87,25 @@ de dónde.
 
 ## 3. Composición de las ligas (verificado en los ficheros)
 
-Los tres ejecutables llevan una tabla de IDs de equipo (el número de
-`EQ95xxxx.DBC`) en u32 little-endian:
+Los ejecutables llevan **varias copias** de la composición, como tablas de
+IDs de equipo (el número de `EQ95xxxx.DBC`) en u32 little-endian:
 
-| Ejecutable | Offset en el fichero (4.5 original) | Formato |
-|---|---|---|
-| `PCMANAG.DAT` | `0xA80DC` (memoria `0xA3B24`) | 22 Primera + 20 Segunda + resto, fin `0xFFFF` |
-| `PROMANAG.DAT` | `0xAAABC` | igual |
-| `PCFUTBOL.DAT` | `0x58344` | 22 IDs, `0xFFFF`, 20 IDs, `0xFFFF` |
+| Ejecutable | Fichero (4.5) | Memoria | Formato |
+|---|---|---|---|
+| `PCMANAG.DAT` | `0xA80DC` | `0xA22DC` | lista larga: 22 Primera + 20 Segunda + 57 Segunda B, fin `0xFFFF` |
+| `PCMANAG.DAT` | `0xA9924` | `0xA3B24` | tabla de 42 (Primera + Segunda) |
+| `PROMANAG.DAT` | `0xAAABC` | `0x964BC` | lista larga |
+| `PROMANAG.DAT` | `0xAC7A0` | `0x981A0` | tabla de 42 (aquí Albacete y Valladolid van al revés) |
+| `PCFUTBOL.DAT` | `0x58344` | `0x54344` | 22 IDs, `0xFFFF`, 20 IDs, `0xFFFF` |
+
+- La lista larga está ordenada por la clasificación de la temporada anterior
+  (Real Madrid, Deportivo, Betis...). En Segunda B, Ávila y Manchego aparecen
+  dos veces: por eso un intercambio debe sustituir **todas** las apariciones.
+- La tabla de 42 se recorre con bucles `cmp ...,0xA8` (42×4) y se rellena
+  desde el fichero al cargar una liga grabada.
+- No se sabe cuál de las copias manda al empezar partida, así que las
+  herramientas modifican **todas**. (La primera versión de `ligas_pcf.py` sólo
+  tocaba la lista larga; corregido.)
 
 - El código accede a ella como `tabla[división*22 + puesto]` y aborta si el
   índice pasa de 41.
@@ -101,6 +114,17 @@ Los tres ejecutables llevan una tabla de IDs de equipo (el número de
 - `PCMANAG.DAT`: emparejamientos de la primera jornada en `0xA3C14`
   (memoria): 11 pares de Primera y 10 de Segunda, índices de puesto. El resto
   del calendario se genera rotando.
+
+### En el editor: botón «Composición de ligas»
+
+Tres listas (Primera, Segunda, Segunda B). Se elige un equipo en una y otro
+en otra y se pulsa «Intercambiar». Al guardar se modifican los tres
+ejecutables con copia `.bak`. Las tablas se localizan por contenido, así que
+funciona también con PC Fútbol 4.0 (verificado en lectura: allí la lista
+larga tiene 96 equipos).
+
+El editor y `ligas_pcf.py` se han validado uno contra otro: el mismo
+intercambio (Ávila ↔ Albacete) produce ficheros idénticos byte a byte.
 
 ### Herramienta `ligas_pcf.py`
 
