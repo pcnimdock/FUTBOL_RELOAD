@@ -14,6 +14,8 @@ DialogEquipos::DialogEquipos(QWidget *parent) :
     ui(new Ui::DialogEquipos)
 {
     ui->setupUi(this);
+    // Botones de maximizar/minimizar: en Linux los QDialog no los traen
+    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
     connect(&boton_group, &QButtonGroup::idClicked, this, &DialogEquipos::boton_group_clicked);
 
     // --- Botón para abrir el editor de equipación (camiseta) ---

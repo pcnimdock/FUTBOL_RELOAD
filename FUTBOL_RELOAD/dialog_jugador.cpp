@@ -7,6 +7,8 @@ Dialog_jugador::Dialog_jugador(QWidget *parent) :
     ui(new Ui::Dialog_jugador)
 {
     ui->setupUi(this);
+    // Botones de maximizar/minimizar: en Linux los QDialog no los traen
+    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 
     // Aplicar el tema oscuro directamente sobre este diálogo: al ser un
     // diálogo modal (a veces anidado dentro de otro diálogo modal), no

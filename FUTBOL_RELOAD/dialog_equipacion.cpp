@@ -327,6 +327,8 @@ void PaletaCamiseta::mouseMoveEvent(QMouseEvent *ev)
 DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
 {
     setWindowTitle("Editar equipación (camiseta, pantalón, medias y botas)");
+    // Botones de maximizar/minimizar: en Linux los QDialog no los traen
+    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
     setModal(true);
     colores = PCFutbolEquipacion::coloresDisponibles();
 

@@ -12,6 +12,8 @@
 DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog(parent)
 {
     setWindowTitle("Composición de ligas");
+    // Botones de maximizar/minimizar: en Linux los QDialog no los traen
+    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
     setModal(true);
     resize(980, 640);
 

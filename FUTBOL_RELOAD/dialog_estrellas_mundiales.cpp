@@ -9,6 +9,8 @@ dialog_estrellas_mundiales::dialog_estrellas_mundiales(QWidget *parent) :
     ui(new Ui::dialog_estrellas_mundiales)
 {
     ui->setupUi(this);
+    // Botones de maximizar/minimizar: en Linux los QDialog no los traen
+    setWindowFlags(windowFlags() | Qt::WindowMinMaxButtonsHint);
 
     QFile estiloFile(":/style/style.qss");
     if (estiloFile.open(QFile::ReadOnly | QFile::Text)) {
