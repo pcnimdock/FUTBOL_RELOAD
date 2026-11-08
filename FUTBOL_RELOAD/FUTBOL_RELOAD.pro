@@ -37,6 +37,7 @@ SOURCES += \
     mybutton.cpp
 
 HEADERS += \
+    util_ventanas.h \
     pcfutbol_ligas.h \
     dialog_ligas.h \
     bbdd_futbol.h \

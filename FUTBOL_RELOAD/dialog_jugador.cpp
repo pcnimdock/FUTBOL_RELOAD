@@ -1,4 +1,5 @@
 #include "dialog_jugador.h"
+#include "util_ventanas.h"
 #include "ui_dialog_jugador.h"
 #include <QFile>
 
@@ -20,6 +21,9 @@ Dialog_jugador::Dialog_jugador(QWidget *parent) :
         setStyleSheet(QString::fromUtf8(estiloFile.readAll()));
         estiloFile.close();
     }
+
+    // Que la ventana quepa en pantallas pequeñas (contenido con barras de desplazamiento)
+    UtilVentanas::hacerDesplazable(this);
 }
 
 Dialog_jugador::~Dialog_jugador()

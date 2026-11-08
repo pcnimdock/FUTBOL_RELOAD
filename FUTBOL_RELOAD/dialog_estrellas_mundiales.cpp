@@ -1,4 +1,5 @@
 #include "dialog_estrellas_mundiales.h"
+#include "util_ventanas.h"
 #include "ui_dialog_estrellas_mundiales.h"
 #include <QFile>
 #include <QPalette>
@@ -26,6 +27,9 @@ dialog_estrellas_mundiales::dialog_estrellas_mundiales(QWidget *parent) :
     palTabla.setColor(QPalette::Highlight, QColor("#86aa1c"));
     palTabla.setColor(QPalette::HighlightedText, QColor("#16210a"));
     ui->tableView_jugadores->setPalette(palTabla);
+
+    // Que la ventana quepa en pantallas pequeñas (contenido con barras de desplazamiento)
+    UtilVentanas::hacerDesplazable(this);
 }
 
 dialog_estrellas_mundiales::~dialog_estrellas_mundiales()

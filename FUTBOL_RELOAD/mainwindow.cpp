@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "util_ventanas.h"
 #include "dialog_ligas.h"
 #include <QProgressDialog>
 #include <QApplication>
@@ -134,6 +135,9 @@ MainWindow::MainWindow(QWidget *parent)
     model = new QStandardItemModel(lista_jugadores_totales.size(),3,this);
     model2 = new QStandardItemModel(lista_equipos.size(),1,this);
 
+
+    // Que la ventana quepa en pantallas pequeñas (contenido con barras de desplazamiento)
+    UtilVentanas::hacerDesplazable(this);
 }
 
 MainWindow::~MainWindow()

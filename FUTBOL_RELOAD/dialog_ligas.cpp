@@ -1,4 +1,5 @@
 #include "dialog_ligas.h"
+#include "util_ventanas.h"
 
 #include <QListWidget>
 #include <QLabel>
@@ -75,9 +76,13 @@ DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog
     {
         m_lblAvisos->setText(error);
         m_btnGuardar->setEnabled(false);
+        UtilVentanas::hacerDesplazable(this);
         return;
     }
     rellenar();
+
+    // Que la ventana quepa en pantallas pequeñas (contenido con barras de desplazamiento)
+    UtilVentanas::hacerDesplazable(this);
 }
 
 QString DialogLigas::textoEquipo(quint32 id, int pos) const

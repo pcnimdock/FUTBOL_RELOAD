@@ -1,4 +1,5 @@
 #include "dialog_equipacion.h"
+#include "util_ventanas.h"
 #include "paleta_kits.h"
 
 #include <QPainter>
@@ -554,6 +555,9 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     m_paleta->seleccionar(0x80);
     onColorElegido(0x80);
     refrescar();
+
+    // Que la ventana quepa en pantallas pequeñas (contenido con barras de desplazamiento)
+    UtilVentanas::hacerDesplazable(this);
 }
 
 // --- API pública ------------------------------------------------------------
