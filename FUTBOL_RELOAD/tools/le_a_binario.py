@@ -3,6 +3,8 @@ con las reubicaciones internas aplicadas. Uso: le_a_binario.py EXE carpeta_salid
 Sólo reubicaciones internas (las de DOS/4GW); los objetos se escriben como objN.bin
 y la base de cada uno en info.json."""
 import sys, struct, json, os
+if len(sys.argv) != 3:
+    sys.exit(__doc__)
 d = open(sys.argv[1], 'rb').read(); out = sys.argv[2]
 le = struct.unpack_from('<I', d, 0x3C)[0]
 assert d[le:le+2] == b'LE', d[le:le+2]
