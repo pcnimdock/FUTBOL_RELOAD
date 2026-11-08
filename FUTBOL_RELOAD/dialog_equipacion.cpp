@@ -20,6 +20,8 @@
 #include <QIcon>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
+#include <QMap>
 
 static inline QColor colorPaleta(int idx)
 {
@@ -324,7 +326,7 @@ void PaletaCamiseta::mouseMoveEvent(QMouseEvent *ev)
 // ===========================================================================
 DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
 {
-    setWindowTitle("Editar equipación (camiseta)");
+    setWindowTitle("Editar equipación (camiseta, pantalón, medias y botas)");
     setModal(true);
     colores = PCFutbolEquipacion::coloresDisponibles();
 
@@ -386,12 +388,12 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     m_chkRejilla = new QCheckBox("Rejilla", this);
     m_chkRejilla->setChecked(true);
 
-    m_chkSombra = new QCheckBox("Proteger sombra (recomendado)", this);
+    m_chkSombra = new QCheckBox("Proteger botas/contorno al pintar el icono", this);
     m_chkSombra->setChecked(true);
-    m_chkSombra->setToolTip("El byte 7 de la textura es el contorno negro del sprite "
-                            "(0x60 en los 470 equipos originales, sin excepción). "
-                            "Si lo desprotege y lo pinta, la camiseta perderá su "
-                            "silueta negra dentro del juego.");
+    m_chkSombra->setToolTip("El byte 7 de la textura es el color principal de las BOTAS "
+                            "en el partido, y el icono lo usa además como contorno "
+                            "(0x60 = negro en los 470 equipos originales). Para "
+                            "cambiar las botas usa la zona \"Botas\".");
 
     QHBoxLayout *filaOpts = new QHBoxLayout();
     filaOpts->addWidget(new QLabel("Zoom:", this));
@@ -405,6 +407,15 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     colIzq->addLayout(filaOpts);
     colIzq->addWidget(m_chkSombra);
     colIzq->addWidget(m_lblInfo);
+
+    QGroupBox *gbPartido = new QGroupBox("Vista en el partido", this);
+    QVBoxLayout *lpart = new QVBoxLayout(gbPartido);
+    m_lblJugador = new QLabel(this);
+    m_lblJugador->setAlignment(Qt::AlignCenter);
+    m_lblJugador->setMinimumHeight(130);
+    m_lblJugador->setStyleSheet("background:#2f6b34;");
+    lpart->addWidget(m_lblJugador);
+    colIzq->addWidget(gbPartido);
     colIzq->addStretch();
 
     // --- Paleta -------------------------------------------------------------
@@ -465,12 +476,22 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     m_cbZona->addItem("Hombros");
     m_cbZona->addItem("Torso");
     m_cbZona->addItem("Faldón (parte baja)");
-    m_cbZona->addItem("Toda la camiseta");
+    m_cbZona->addItem("Toda la camiseta (icono)");
+    m_cbZona->addItem("Camiseta completa (partido)");
+    m_cbZona->addItem("Pantalón");
+    m_cbZona->addItem("Medias");
+    m_cbZona->addItem("Botas");
+    m_cbZona->setCurrentIndex(10);
+    m_chkDegradado = new QCheckBox("Con degradado (familia del color elegido)", this);
+    m_chkDegradado->setChecked(true);
+    m_chkDegradado->setToolTip("Conserva las luces y sombras: cada píxel recibe un tono "
+                               "más claro u oscuro de la familia del color elegido.");
     QPushButton *btnZona = new QPushButton("Rellenar zona con el color elegido", this);
 
     QGroupBox *gbZona = new QGroupBox("Zonas", this);
     QVBoxLayout *lz = new QVBoxLayout(gbZona);
     lz->addWidget(m_cbZona);
+    lz->addWidget(m_chkDegradado);
     lz->addWidget(btnZona);
 
     QVBoxLayout *colDer = new QVBoxLayout();
@@ -537,6 +558,8 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
 void DialogEquipacion::setRutaEquiposDat(const QString &ruta)
 {
     le_ruta->setText(ruta);
+    cargarSpritesPartido();
+    refrescar();
 }
 
 void DialogEquipacion::setNumeroEquipo(int n)
@@ -579,6 +602,98 @@ void DialogEquipacion::onColorElegido(int idxPaleta)
 void DialogEquipacion::refrescar()
 {
     m_lienzo->setTextura(m_tex[m_actual]);
+    if (m_lblJugador)
+    {
+        const QImage im = vistaPartido(3);
+        if (im.isNull())
+            m_lblJugador->setText("Indica la ruta de EQUIPOS.DAT\n(se usan los sprites de GRAFICOS)");
+        else
+            m_lblJugador->setPixmap(QPixmap::fromImage(im));
+    }
+}
+
+// --- Vista del jugador en el partido --------------------------------------
+// Carpeta del juego = carpeta que contiene PALETAS/EQUIPOS.DAT
+void DialogEquipacion::cargarSpritesPartido()
+{
+    m_palGraficos.clear();
+    m_empDatos.clear();
+    m_empFrames.clear();
+    m_empFichero.clear();
+    if (le_ruta->text().isEmpty()) return;
+
+    QDir juego = QFileInfo(le_ruta->text()).absoluteDir();
+    juego.cdUp();
+    bool ok = false;
+    m_palGraficos = PCFutbolExtras::leerPaletaBBM(juego.filePath("GRAFICOS/PALETA.BBM"), &ok);
+    if (!ok || m_palGraficos.size() < 256)
+    {
+        m_palGraficos.clear();
+        return;
+    }
+    struct Pose { const char *fichero; int frame; };
+    static const Pose poses[] = { {"PASE.EMP", 2}, {"CORRER.EMP", 2}, {"CORRER.EMP", 18},
+                                  {"CHUT.EMP", 4}, {"ENTRADA.EMP", 3} };
+    QMap<QString, int> cargados;
+    for (const Pose &po : poses)
+    {
+        const QString nombre = QString::fromLatin1(po.fichero);
+        if (!cargados.contains(nombre))
+        {
+            QFile f(juego.filePath("GRAFICOS/" + nombre));
+            if (!f.open(QIODevice::ReadOnly)) continue;
+            m_empDatos.append(f.readAll());
+            cargados[nombre] = m_empDatos.size() - 1;
+        }
+        const int iDat = cargados[nombre];
+        const QVector<PCFutbolExtras::FrameEMP> fr = PCFutbolExtras::parsearEMP(m_empDatos.at(iDat));
+        if (fr.isEmpty()) continue;
+        m_empFrames.append(fr.at(qMin(po.frame, int(fr.size()) - 1)));
+        m_empFichero.append(iDat);
+    }
+}
+
+QImage DialogEquipacion::vistaPartido(int escala) const
+{
+    if (m_palGraficos.size() < 256 || m_empFrames.isEmpty()) return QImage();
+
+    const QByteArray lut = PCFutbolEquipacion::tablaRecoloreado(m_tex[m_actual], m_bloqueOrig[m_actual]);
+    int W = 0, H = 0;
+    for (const PCFutbolExtras::FrameEMP &f : m_empFrames)
+    {
+        W += f.ancho + 4;
+        H = qMax(H, f.alto);
+    }
+    QImage im(W * escala, H * escala, QImage::Format_ARGB32);
+    im.fill(QColor(0x2f, 0x6b, 0x34));
+    int xo = 0;
+    for (int i = 0; i < m_empFrames.size(); i++)
+    {
+        const PCFutbolExtras::FrameEMP &f = m_empFrames.at(i);
+        const QByteArray &d = m_empDatos.at(m_empFichero.at(i));
+        const int yo = H - f.alto;
+        for (int plano = 0; plano < 4; plano++)
+        {
+            const int base = f.datos + plano * f.tamPlano;
+            for (int y = 0; y < f.alto; y++)
+            {
+                for (int xb = 0; xb < f.bytesPorFila; xb++)
+                {
+                    const quint8 idx = static_cast<quint8>(d.at(base + y * f.bytesPorFila + xb));
+                    if (idx == 0) continue;
+                    const int x = xb * 4 + plano;
+                    if (x >= f.ancho) continue;
+                    const quint8 c = (idx < lut.size()) ? static_cast<quint8>(lut.at(idx)) : idx;
+                    const QRgb rgb = m_palGraficos.at(c) | 0xFF000000u;
+                    for (int dy = 0; dy < escala; dy++)
+                        for (int dx = 0; dx < escala; dx++)
+                            im.setPixel((xo + x) * escala + dx, (yo + y) * escala + dy, rgb);
+                }
+            }
+        }
+        xo += f.ancho + 4;
+    }
+    return im;
 }
 
 void DialogEquipacion::empujarUndo()
@@ -629,7 +744,10 @@ QString DialogEquipacion::nombreZona(int pos) const
 {
     struct Entrada { PCFutbolEquipacion::Zona z; const char *n; };
     static const Entrada tabla[] = {
-        { PCFutbolEquipacion::Zona::Sombra,         "SOMBRA (fija)" },
+        { PCFutbolEquipacion::Zona::Botas,          "BOTAS (y contorno del icono)" },
+        { PCFutbolEquipacion::Zona::Pantalon,       "pantalón" },
+        { PCFutbolEquipacion::Zona::Medias,         "medias" },
+        { PCFutbolEquipacion::Zona::Pelo,           "pelo (fijo)" },
         { PCFutbolEquipacion::Zona::Cuello,         "cuello" },
         { PCFutbolEquipacion::Zona::Ribete,         "ribete inferior" },
         { PCFutbolEquipacion::Zona::MangaIzquierda, "manga izquierda" },
@@ -665,10 +783,12 @@ void DialogEquipacion::aplicarPatron()
 
     m_tex[m_actual] = m_lienzo->textura();
     empujarUndo();
-    m_tex[m_actual] = PCFutbolEquipacion::generarTextura(patron,
-                                                         colores.at(ia), colores.at(ib),
-                                                         m_spAncho->value(),
-                                                         m_chkSombra->isChecked());
+    // El patrón sólo se aplica a la camiseta: pantalón, medias, botas y pelo
+    // conservan sus colores.
+    const QByteArray generada = PCFutbolEquipacion::generarTextura(patron,
+                                                                   colores.at(ia), colores.at(ib),
+                                                                   m_spAncho->value(), true);
+    PCFutbolEquipacion::copiarSoloCamiseta(m_tex[m_actual], generada);
     refrescar();
 }
 
@@ -683,15 +803,32 @@ void DialogEquipacion::rellenarZona()
         PCFutbolEquipacion::Zona::Hombros,
         PCFutbolEquipacion::Zona::Torso,
         PCFutbolEquipacion::Zona::Faldon,
-        PCFutbolEquipacion::Zona::TodoLoVisible
+        PCFutbolEquipacion::Zona::TodoLoVisible,
+        PCFutbolEquipacion::Zona::Camiseta,
+        PCFutbolEquipacion::Zona::Pantalon,
+        PCFutbolEquipacion::Zona::Medias,
+        PCFutbolEquipacion::Zona::Botas
     };
-    const int i = qBound(0, m_cbZona->currentIndex(), 8);
+    const int nZonas = int(sizeof(zonas) / sizeof(zonas[0]));
+    const int i = qBound(0, m_cbZona->currentIndex(), nZonas - 1);
+    const quint8 color = static_cast<quint8>(m_paleta->colorSeleccionado());
+    // Las botas se piden explícitamente: no se protegen
+    const bool proteger = (zonas[i] != PCFutbolEquipacion::Zona::Botas) && m_chkSombra->isChecked();
 
     m_tex[m_actual] = m_lienzo->textura();
     empujarUndo();
-    PCFutbolEquipacion::pintarZona(m_tex[m_actual], zonas[i],
-                                   static_cast<quint8>(m_paleta->colorSeleccionado()),
-                                   m_chkSombra->isChecked());
+    const QVector<quint8> rampa = PCFutbolEquipacion::rampaDeIndice(color);
+    if (m_chkDegradado->isChecked() && !rampa.isEmpty())
+    {
+        QByteArray t = m_tex[m_actual];
+        PCFutbolEquipacion::pintarZonaRampa(t, zonas[i], rampa);
+        if (proteger) t[PCFutbolEquipacion::POS_SOMBRA] = m_tex[m_actual].at(PCFutbolEquipacion::POS_SOMBRA);
+        m_tex[m_actual] = t;
+    }
+    else
+    {
+        PCFutbolEquipacion::pintarZona(m_tex[m_actual], zonas[i], color, proteger);
+    }
     refrescar();
 }
 
@@ -733,6 +870,8 @@ void DialogEquipacion::leerDelFichero()
         return;
     }
 
+    if (m_empFrames.isEmpty()) cargarSpritesPartido();
+
     bool alguna = false;
     for (int i = 0; i < 2; i++)
     {
@@ -743,6 +882,7 @@ void DialogEquipacion::leerDelFichero()
         {
             m_tex[i] = bloque.mid(8, PCFutbolEquipacion::TAM_TEXTURA);
             m_texOrig[i] = m_tex[i];
+            m_bloqueOrig[i] = bloque;
             m_undo[i].clear();
             alguna = true;
         }
@@ -793,10 +933,11 @@ void DialogEquipacion::guardarEnDisco()
     bool ok = true;
     for (int i = 0; i < 2; i++)
     {
-        const QByteArray bloque = PCFutbolEquipacion::bloqueDesdeTextura(m_tex[i]);
-        if (!PCFutbolEquipacion::escribirBloqueEquipacion(le_ruta->text(),
-                                                          sp_numero->value(),
-                                                          (i == 0), bloque))
+        // Sólo se reescriben los 168 bytes de textura: la cabecera y el
+        // cierre (que lleva datos propios de cada equipo) se conservan.
+        if (!PCFutbolEquipacion::escribirTexturaEquipacion(le_ruta->text(),
+                                                           sp_numero->value(),
+                                                           (i == 0), m_tex[i]))
         {
             ok = false;
         }

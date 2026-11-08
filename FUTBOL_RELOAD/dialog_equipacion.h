@@ -22,7 +22,9 @@
 #include <QList>
 #include <QStringList>
 #include <QVector>
+#include <QRgb>
 #include "pcfutbol_equipacion.h"
+#include "pcfutbol_extras.h"
 
 class QLineEdit;
 class QSpinBox;
@@ -140,6 +142,8 @@ private:
     void empujarUndo();
     void refrescar();
     QString nombreZona(int posTextura) const;
+    void cargarSpritesPartido();
+    QImage vistaPartido(int escala) const;
 
     QByteArray m_tex[2];      // 0 = 1ª equipación, 1 = 2ª
     QByteArray m_texOrig[2];
@@ -147,6 +151,13 @@ private:
     bool m_guardado = false;
     QList<QByteArray> m_undo[2];
     QList<PCFutbolEquipacion::ColorEquipacion> colores;
+    QByteArray m_bloqueOrig[2];          // bloque de 190 leído (cierre por equipo)
+
+    // Sprites del partido para la vista previa (GRAFICOS/*.EMP)
+    QVector<QRgb> m_palGraficos;
+    QList<QByteArray> m_empDatos;
+    QList<PCFutbolExtras::FrameEMP> m_empFrames;
+    QList<int> m_empFichero;             // índice en m_empDatos de cada frame
 
     LienzoCamiseta *m_lienzo;
     PaletaCamiseta *m_paleta;
@@ -164,6 +175,8 @@ private:
     QCheckBox *m_chkSombra;
     QCheckBox *m_chkRejilla;
     QCheckBox *m_chkPaletaCompleta;
+    QCheckBox *m_chkDegradado;
+    QLabel    *m_lblJugador = nullptr;
 };
 
 #endif // DIALOG_EQUIPACION_H

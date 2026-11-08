@@ -3,6 +3,8 @@
 #include <QFile>
 #include <QIODevice>
 #include <QColor>
+#include <algorithm>
+#include <climits>
 
 // ---------------------------------------------------------------------------
 // MAPA REAL DE PÍXELES DEL SPRITE DE CAMISETA (20 x 20)
@@ -51,6 +53,29 @@ const int ZONA_TORSO[]   = { 97, 102, 107, 109, 112, 117,
                              120, 126, 131, 134, 137, 141,
                              145, 150, 155, 158, 160, 165 };
 const int ZONA_FALDON[]  = { 1, 34, 43, 47, 50, 52 };
+
+// Zonas del JUGADOR en el partido (ver pcfutbol_equipacion.h)
+const int ZONA_BOTAS[]    = { 7, 22, 23 };
+const int ZONA_PELO[]     = { 14 };
+const int ZONA_MEDIAS[]   = { 18, 19, 20 };
+const int ZONA_PANTALON[] = { 9, 10, 11, 12, 13, 15,
+                              63, 64, 65, 66, 67, 68, 69, 70, 71 };
+const int ZONA_FIJOS[]    = { 8, 17, 21 };
+
+template <int N>
+bool contiene(const int (&arr)[N], int v)
+{
+    for (int i = 0; i < N; i++)
+    {
+        if (arr[i] == v) return true;
+    }
+    return false;
+}
+
+int luminancia(quint8 idx)
+{
+    return paleta_kits[idx][0] * 299 + paleta_kits[idx][1] * 587 + paleta_kits[idx][2] * 114;
+}
 
 template <int N>
 void anadir(QVector<int> &v, const int (&arr)[N])
@@ -153,9 +178,12 @@ QByteArray PCFutbolEquipacion::cabeceraFija()
 
 QByteArray PCFutbolEquipacion::cierreFijo()
 {
+    // Cierre más frecuente en los 470 kits reales (177 de ellos). Los
+    // bytes 185 y 187-189 varían por equipo: al guardar en un EQUIPOS.DAT
+    // existente se usa escribirTexturaEquipacion(), que no los toca.
     static const quint8 bytes[14] = {
         0x00, 0xA6, 0x68, 0x6C, 0x70, 0x72, 0x77, 0x7B,
-        0x29, 0xD1, 0xD1, 0x50, 0x00, 0xFF
+        0x29, 0x29, 0x29, 0xFF, 0xFF, 0xFF
     };
     QByteArray c;
     for (int i = 0; i < 14; i++)
@@ -247,8 +275,119 @@ QVector<int> PCFutbolEquipacion::posicionesZona(Zona zona)
             }
         }
         break;
+    case Zona::Camiseta:
+        for (int p = 0; p < TAM_TEXTURA; p++)
+        {
+            if (esPosicionCamiseta(p)) v.append(p);
+        }
+        break;
+    case Zona::Pantalon: anadir(v, ZONA_PANTALON); break;
+    case Zona::Medias:   anadir(v, ZONA_MEDIAS); break;
+    case Zona::Botas:    anadir(v, ZONA_BOTAS); break;
+    case Zona::Pelo:     anadir(v, ZONA_PELO); break;
     }
     return v;
+}
+
+bool PCFutbolEquipacion::esPosicionCamiseta(int pos)
+{
+    if (pos < 0 || pos >= TAM_TEXTURA) return false;
+    return !contiene(ZONA_BOTAS, pos) && !contiene(ZONA_PELO, pos) &&
+           !contiene(ZONA_MEDIAS, pos) && !contiene(ZONA_PANTALON, pos) &&
+           !contiene(ZONA_FIJOS, pos);
+}
+
+void PCFutbolEquipacion::copiarSoloCamiseta(QByteArray &destino, const QByteArray &origen)
+{
+    if (destino.size() < TAM_TEXTURA || origen.size() < TAM_TEXTURA) return;
+    for (int p = 0; p < TAM_TEXTURA; p++)
+    {
+        if (esPosicionCamiseta(p)) destino[p] = origen[p];
+    }
+}
+
+QVector<quint8> PCFutbolEquipacion::rampaDeIndice(quint8 idx)
+{
+    if (idx == 0x29) // blanco puro: lo usan los kits como tono más claro del blanco
+    {
+        for (const ColorEquipacion &c : coloresDisponibles())
+            if (c.nombre == "Blanco") return c.rampa;
+    }
+    for (const ColorEquipacion &c : coloresDisponibles())
+    {
+        if (c.rampa.contains(idx)) return c.rampa;
+    }
+    return {};
+}
+
+void PCFutbolEquipacion::pintarZonaRampa(QByteArray &textura168, Zona zona,
+                                         const QVector<quint8> &rampa)
+{
+    if (textura168.size() < TAM_TEXTURA || rampa.isEmpty()) return;
+    const QVector<int> pos = posicionesZona(zona);
+    if (pos.isEmpty()) return;
+
+    // La rampa se ordena de oscuro a claro por luminancia real
+    QVector<quint8> r = rampa;
+    std::sort(r.begin(), r.end(), [](quint8 a, quint8 b) { return luminancia(a) < luminancia(b); });
+
+    int lmin = INT_MAX, lmax = INT_MIN;
+    for (int p : pos)
+    {
+        const int l = luminancia(static_cast<quint8>(textura168.at(p)));
+        lmin = qMin(lmin, l);
+        lmax = qMax(lmax, l);
+    }
+    for (int p : pos)
+    {
+        int k = r.size() / 2; // zona de un solo tono: tono medio
+        if (lmax > lmin)
+        {
+            const int l = luminancia(static_cast<quint8>(textura168.at(p)));
+            k = qRound(double(l - lmin) * (r.size() - 1) / double(lmax - lmin));
+        }
+        textura168[p] = static_cast<char>(r.at(qBound(0, k, int(r.size()) - 1)));
+    }
+}
+
+QByteArray PCFutbolEquipacion::tablaRecoloreado(const QByteArray &textura168,
+                                                const QByteArray &bloqueOriginal)
+{
+    QByteArray t = textura168;
+    t.resize(TAM_TEXTURA);
+    QByteArray lut;
+    lut.append(cabeceraFija());
+    lut.append(t);
+    if (bloqueOriginal.size() == TAM_BLOQUE)
+        lut.append(bloqueOriginal.mid(8 + TAM_TEXTURA));
+    else
+        lut.append(cierreFijo());
+    return lut;
+}
+
+bool PCFutbolEquipacion::escribirTexturaEquipacion(const QString &equiposDatPath, int n, bool primera,
+                                                   const QByteArray &textura168)
+{
+    if (textura168.size() != TAM_TEXTURA) return false;
+    QFile f(equiposDatPath);
+    if (!f.open(QIODevice::ReadWrite)) return false;
+    const int offset = kitOffset(n, primera);
+    if (offset < 0 || offset + TAM_BLOQUE > f.size())
+    {
+        f.close();
+        return false;
+    }
+    // Comprobación de seguridad: el bloque debe empezar por la cabecera fija
+    f.seek(offset);
+    if (f.read(8) != cabeceraFija())
+    {
+        f.close();
+        return false;
+    }
+    f.seek(offset + 8);
+    const qint64 escritos = f.write(textura168);
+    f.close();
+    return escritos == TAM_TEXTURA;
 }
 
 void PCFutbolEquipacion::pintarZona(QByteArray &textura168, Zona zona,

@@ -26,6 +26,24 @@
  *    - posiciones 72,77 -> HOMBROS
  *    - filas 4,5,6 de la textura -> TORSO
  *    - posiciones 1,34,43,47,50,52 -> FALDÓN (parte baja)
+ *
+ * TABLA DE RECOLOREADO DEL PARTIDO (verificado 2026-11):
+ *  El bloque de 190 bytes es en realidad una TABLA (LUT) para los sprites
+ *  de jugador de GRAFICOS/*.EMP: el píxel del sprite con índice i se pinta
+ *  con el color bloque[i] (paleta GRAFICOS/PALETA.BBM). Por eso:
+ *    - bloque[1..6] = 0x51..0x56 ("QRSTUV") -> rampa de PIEL
+ *    - bloque[7]    = 0x3E (">")             -> sombra del jugador en el césped
+ *    - bloque[8..175] = la "textura": posición p de la textura = índice p+8
+ *    - bloque[176..189] = índices altos, apenas usados por los sprites; los
+ *      bytes 187..189 llevan además un color RGB propio de cada kit.
+ *  Zonas del jugador (posiciones de textura), comprobadas pintando cada zona
+ *  de un color en CORRER/CHUT/ENTRADA/CABCHI.EMP:
+ *    - BOTAS    : 7, 22, 23   (0x60/0x70/0x73 en los 470 kits: botas negras)
+ *    - PELO     : 14          (0x60 en los 470 kits)
+ *    - MEDIAS   : 18, 19, 20
+ *    - PANTALÓN : 9-13, 15, 63-71
+ *    - fijos    : 8, 17, 21   (detalles negros, 0x60)
+ *    - CAMISETA : todas las demás
  */
 
 #include <QString>
@@ -39,9 +57,16 @@ class PCFutbolEquipacion
 public:
     enum class Patron { Liso, RayasVerticales, FranjasHorizontales };
 
-    // Zonas anatómicas de la camiseta (para pintarlas de golpe)
+    // Zonas anatómicas (para pintarlas de golpe).
+    //  - Las primeras son zonas del ICONO de 20x20 (sólo camiseta).
+    //  - Camiseta/Pantalon/Medias/Botas/Pelo son zonas del JUGADOR en el
+    //    partido (ver "TABLA DE RECOLOREADO" más abajo).
+    //  - Sombra se conserva por compatibilidad: es la posición 7, que en
+    //    realidad es el color principal de las BOTAS (y el icono la usa
+    //    además como contorno).
     enum class Zona { Sombra, Cuello, Ribete, MangaIzquierda, MangaDerecha,
-                      Mangas, Hombros, Torso, Faldon, TodoLoVisible };
+                      Mangas, Hombros, Torso, Faldon, TodoLoVisible,
+                      Camiseta, Pantalon, Medias, Botas, Pelo };
 
     struct ColorEquipacion {
         QString nombre;
@@ -93,6 +118,34 @@ public:
     // Fuerza el contorno negro del juego
     static void restaurarSombra(QByteArray &textura168);
 
+    // --- Zonas del jugador en el partido ---------------------------------
+    // true si la posición pertenece a la camiseta (no a pantalón, medias,
+    // botas, pelo ni a los detalles negros fijos).
+    static bool esPosicionCamiseta(int pos);
+
+    // Copia en "destino" sólo las posiciones de camiseta de "origen".
+    // Sirve para aplicar un patrón sin pisar pantalón, medias ni botas.
+    static void copiarSoloCamiseta(QByteArray &destino, const QByteArray &origen);
+
+    // Rellena una zona con una rampa de color conservando el sombreado:
+    // cada posición recibe un tono más claro u oscuro según lo claro u
+    // oscuro que fuera su color anterior dentro de la zona.
+    static void pintarZonaRampa(QByteArray &textura168, Zona zona,
+                                const QVector<quint8> &rampa);
+
+    // Rampa (de coloresDisponibles) que contiene el índice; vacía si ninguna.
+    static QVector<quint8> rampaDeIndice(quint8 idx);
+
+    // Tabla de recoloreado de 190 entradas (cabecera + textura + cierre)
+    // para pintar los sprites del partido. "cierre" puede venir vacío.
+    static QByteArray tablaRecoloreado(const QByteArray &textura168,
+                                       const QByteArray &bloqueOriginal = QByteArray());
+
+    // Escribe SÓLO los 168 bytes de textura de un kit (offset+8), sin tocar
+    // la cabecera ni los 14 bytes finales, que varían por equipo.
+    static bool escribirTexturaEquipacion(const QString &equiposDatPath, int n, bool primera,
+                                          const QByteArray &textura168);
+
     // --- Vista previa --------------------------------------------------------
     // Dibuja el sprite real de 20x20 ampliado x escala (nearest-neighbor).
     static QImage previsualizar(const QByteArray &textura168, int escala = 10);
@@ -110,7 +163,7 @@ public:
     static const int SPRITE_W = 20;
     static const int SPRITE_H = 20;
 
-    static const int POS_SOMBRA = 7;
+    static const int POS_SOMBRA = 7;   // = color principal de las BOTAS
     static const quint8 COLOR_SOMBRA = 0x60;
 
 private:
