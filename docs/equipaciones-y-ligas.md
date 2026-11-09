@@ -51,7 +51,7 @@ color en varios sprites:
 | Zona | Posiciones | Observaciones |
 |---|---|---|
 | **Botas** | 7, 22, 23 | `0x60/0x70/0x73` en los 470 kits: botas negras |
-| **Pelo** | 14 | `0x60` en los 470 kits (probablemente el juego lo cambia por jugador) |
+| **Pelo** | 14 | `0x60` en los 470 kits: el juego lo sustituye por el pelo de cada jugador (verificado) |
 | **Medias** | 18, 19, 20 | |
 | **Pantalón** | 9–13, 15, 63–71 | |
 | Detalles fijos | 8, 17, 21 | negro `0x60` |
@@ -214,7 +214,9 @@ FFFF                  fin
   del Sevilla, el aviso «Competiciones europeas» de la Liga Manager los muestra.
 - En el editor: apartado **«Clasificados para Europa»** de la ventana
   «Composición de ligas», con un desplegable por plaza. Solo cambia quién va,
-  no cuántos (1 + 2 + 3). `ligas_pcf.py` no lo soporta todavía.
+  no cuántos (1 + 2 + 3).
+- Por línea de órdenes: `ligas_pcf.py europa JUEGO [--copa 4] [--recopa 3,2]
+  [--uefa 19,1,6]`; sin opciones solo los muestra (también salen en `listar`).
 
 ### En el editor: botón «Composición de ligas»
 

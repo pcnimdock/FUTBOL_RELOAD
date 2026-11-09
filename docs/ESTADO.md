@@ -140,6 +140,9 @@ Reglas:
   la 1ª temporada: después el juego la recalcula.
 - Editor: apartado «Clasificados para Europa» en «Composición de ligas».
   Detalle en `equipaciones-y-ligas.md` §3.
+- Línea de órdenes: `ligas_pcf.py europa JUEGO [--copa 4] [--recopa 3,2]
+  [--uefa 19,1,6]` (sin opciones, solo muestra). Da los mismos bytes que el
+  editor.
 
 ### 4.4 Características físicas de los jugadores
 
@@ -148,9 +151,13 @@ Reglas:
   4 pelirrojo, 5 castaño oscuro), **altura** y **peso**.
 - Altura y peso solo existen en equipos **con ficha completa** (byte `0x2A`
   del DBC = 0). Los de Segunda B no tienen esos campos.
-- Sin comprobar: en `EQUIPOS.DAT` el pelo (posición 14) vale `0x60` en todos
-  los kits, así que el juego probablemente lo sustituye según el pelo de cada
-  jugador.
+- **Verificado en el juego:** el pelo y la piel del sprite salen de la ficha
+  de cada jugador, no de `EQUIPOS.DAT` (allí el pelo, posición 14, vale `0x60`
+  en todos los kits). Con pelo 4 en varios titulares del Madrid salen
+  pelirrojos, y con piel 1 Laudrup sale con la piel oscura.
+- En el DBC, tras los dos nombres del jugador: dorsal, estado de fichaje,
+  demarcación, 5 demarcaciones secundarias, puesto en la alineación, `00`,
+  **extranjero, piel, pelo**, posición en el campo.
 
 ### 4.5 Dibujo del kit — `DBDAT/CAMISAS/EQ95xxxx.DFG` (verificado en el juego)
 
@@ -292,8 +299,8 @@ Barcelona (1) y Sevilla (6), cerca de las cadenas "COPA DE EUROPA" y
 
 ### 7.4 Menores
 
-- Comprobar si el pelo de `EQUIPOS.DAT` (posición 14) lo cambia el juego por
-  jugador.
+- ~~Comprobar si el pelo lo cambia el juego por jugador~~: hecho, sí (§4.4).
 - Descifrar `JORNAD*.DBC`. Solo haría falta para cambiar la composición
   también en la base de datos o el seguimiento de la liga real.
+- ~~Europa en `ligas_pcf.py`~~: hecho (orden `europa`, §4.7).
 - Subir la rama a GitHub o abrir PR: solo cuando el usuario lo pida.

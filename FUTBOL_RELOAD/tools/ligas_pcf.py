@@ -34,6 +34,11 @@ USO
   python3 ligas_pcf.py listar      CARPETA_JUEGO
   python3 ligas_pcf.py intercambiar CARPETA_JUEGO ID_A ID_B
   python3 ligas_pcf.py fijar       CARPETA_JUEGO --primera 1,2,...(22) [--segunda ...(20)]
+  python3 ligas_pcf.py europa      CARPETA_JUEGO [--copa 4] [--recopa 3,2] [--uefa 19,1,6]
+
+  «europa» muestra o cambia los clasificados para Europa de la 1ª temporada
+  de una partida nueva (Copa de Europa, Recopa, UEFA). Después el juego los
+  recalcula con la clasificación. Sólo cambia QUIÉN va, no cuántos.
 
   CARPETA_JUEGO es la que contiene PCMANAG.DAT y DBDAT. Los IDs son el número
   del fichero sin el prefijo 95: EQ950004.DBC -> 4.
@@ -283,6 +288,7 @@ def cmd_listar(a):
         print('\nRESTO (Segunda B y otros, %d)' % len(resto))
         for i in resto:
             print('  ' + describir(a.juego, i))
+    imprimir_europa(a.juego, leer_europa(a.juego)[0][2])
 
 
 def escribir(tablas, nuevas_por_tabla, juego):
@@ -371,6 +377,115 @@ def cmd_fijar(a):
     escribir(tablas, nuevas, a.juego)
 
 
+# ---------------------------------------------------------------------------
+# Clasificados para Europa (verificado en el juego, ver docs/)
+#   4, ids..., FFFF   Copa de Europa
+#   3, ids..., FFFF   Recopa
+#   2, ids..., FFFF   UEFA
+#   FFFF              fin           (15 u32 reservados)
+# PCMANAG 0xA21AC / PROMANAG 0x9638C en memoria. Sólo decide la 1ª temporada.
+# ---------------------------------------------------------------------------
+COMPETICIONES = [(4, 'copa', 'Copa de Europa'), (3, 'recopa', 'Recopa'), (2, 'uefa', 'UEFA')]
+
+
+def buscar_tabla_europa(d, juego):
+    encontrados = []
+    for off in range(0, len(d) - 60, 4):
+        p, grupos, ok = off, [], True
+        for codigo, _, _ in COMPETICIONES:
+            if p + 4 > len(d) or struct.unpack_from('<I', d, p)[0] != codigo:
+                ok = False
+                break
+            p += 4
+            ids = []
+            while p + 4 <= len(d):
+                v = struct.unpack_from('<I', d, p)[0]
+                if v == FIN or info_equipo(juego, v) is None or len(ids) >= 8:
+                    break
+                ids.append(v)
+                p += 4
+            if not ids or p + 4 > len(d) or struct.unpack_from('<I', d, p)[0] != FIN:
+                ok = False
+                break
+            p += 4
+            grupos.append(ids)
+        if ok and p + 4 <= len(d) and struct.unpack_from('<I', d, p)[0] == FIN and (p + 4 - off) // 4 <= 15:
+            encontrados.append((off, grupos))
+    return encontrados
+
+
+def leer_europa(juego):
+    res = []
+    for nombre, tipo in EJECUTABLES:
+        ruta = os.path.join(juego, nombre)
+        if not os.path.isfile(ruta):
+            continue
+        with open(ruta, 'rb') as f:
+            d = f.read()
+        enc = buscar_tabla_europa(d, juego)
+        if len(enc) != 1:
+            sys.exit('ERROR: en %s se esperaba 1 tabla de clasificados para Europa y hay %d. '
+                     'No se toca nada.' % (nombre, len(enc)))
+        res.append((ruta, enc[0][0], enc[0][1]))
+    if not res:
+        sys.exit('ERROR: no se encuentra PCMANAG.DAT / PROMANAG.DAT en ' + juego)
+    return res
+
+
+def imprimir_europa(juego, grupos):
+    print('\nCLASIFICADOS PARA EUROPA (1ª temporada de una partida nueva)')
+    for (_, _, titulo), ids in zip(COMPETICIONES, grupos):
+        print('  %s:' % titulo)
+        for i in ids:
+            print('    ' + describir(juego, i))
+
+
+def cmd_europa(a):
+    tablas = leer_europa(a.juego)
+    grupos = tablas[0][2]
+    for ruta, off, g in tablas[1:]:
+        if g != grupos:
+            print('AVISO: %s tiene otros clasificados: %s' % (os.path.basename(ruta), g), file=sys.stderr)
+    nuevos = [list(g) for g in grupos]
+    cambiado = False
+    for k, (_, opcion, titulo) in enumerate(COMPETICIONES):
+        valor = getattr(a, opcion)
+        if valor is None:
+            continue
+        ids = [int(x) for x in valor.split(',') if x.strip()]
+        if len(ids) != len(grupos[k]):
+            sys.exit('ERROR: a la %s van %d equipos y has dado %d (sólo se cambia quién va, '
+                     'no cuántos).' % (titulo, len(grupos[k]), len(ids)))
+        for i in ids:
+            if info_equipo(a.juego, i) is None:
+                sys.exit('ERROR: no existe el equipo %d (DBDAT/EQ95%04d.DBC).' % (i, i))
+        nuevos[k] = ids
+        cambiado = True
+    if not cambiado:
+        for ruta, off, _ in tablas:
+            print('%-13s clasificados para Europa en el offset 0x%X' % (os.path.basename(ruta), off))
+        imprimir_europa(a.juego, grupos)
+        return
+    valores = []
+    for (codigo, _, _), ids in zip(COMPETICIONES, nuevos):
+        valores += [codigo] + ids + [FIN]
+    valores.append(FIN)
+    datos = struct.pack('<%dI' % len(valores), *valores)
+    for ruta, off, _ in tablas:
+        bak = ruta + '.bak'
+        if not os.path.exists(bak):
+            shutil.copy2(ruta, bak)
+        with open(ruta, 'r+b') as f:
+            f.seek(off)
+            f.write(datos)
+        with open(ruta, 'rb') as f:
+            f.seek(off)
+            if f.read(len(datos)) != datos:
+                sys.exit('ERROR: la verificación de %s ha fallado. Restaura %s' % (ruta, bak))
+        print('Escrito %s (copia de seguridad: %s)' % (os.path.basename(ruta), os.path.basename(bak)))
+    imprimir_europa(a.juego, nuevos)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='orden', required=True)
@@ -388,6 +503,12 @@ def main():
     s.add_argument('--primera', help='22 IDs separados por comas')
     s.add_argument('--segunda', help='20 IDs separados por comas')
     s.set_defaults(f=cmd_fijar)
+    s = sub.add_parser('europa', help='muestra o cambia los clasificados para Europa')
+    s.add_argument('juego')
+    s.add_argument('--copa', help='IDs para la Copa de Europa (separados por comas)')
+    s.add_argument('--recopa', help='IDs para la Recopa')
+    s.add_argument('--uefa', help='IDs para la UEFA')
+    s.set_defaults(f=cmd_europa)
     a = p.parse_args()
     a.f(a)
 
