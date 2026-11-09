@@ -28,6 +28,7 @@
 #include <QRegularExpression>
 #include <algorithm>
 #include "bbdd_futbol.h"
+#include "dialog_dibujokit.h"
 
 static inline QColor colorPaleta(int idx)
 {
@@ -538,6 +539,9 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     // --- Botones ------------------------------------------------------------
     QPushButton *btnUndo    = new QPushButton("Deshacer", this);
     QPushButton *btnRestore = new QPushButton("Restaurar original", this);
+    QPushButton *btnDibujo  = new QPushButton("Dibujo en la ficha del equipo…", this);
+    btnDibujo->setToolTip("Dibujo de camiseta y pantalón de la Base de datos (DBDAT/CAMISAS)");
+    connect(btnDibujo, &QPushButton::clicked, this, &DialogEquipacion::abrirDibujoKit);
     QPushButton *btnGuardar = new QPushButton("Guardar en EQUIPOS.DAT", this);
     QPushButton *btnCerrar  = new QPushButton("Cerrar", this);
     btnGuardar->setDefault(true);
@@ -545,6 +549,7 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     QHBoxLayout *filaBotones = new QHBoxLayout();
     filaBotones->addWidget(btnUndo);
     filaBotones->addWidget(btnRestore);
+    filaBotones->addWidget(btnDibujo);
     filaBotones->addStretch();
     filaBotones->addWidget(btnGuardar);
     filaBotones->addWidget(btnCerrar);
@@ -1213,5 +1218,23 @@ void DialogEquipacion::comprobarChoques()
     QPushButton *ok = new QPushButton("Cerrar", &dlg);
     connect(ok, &QPushButton::clicked, &dlg, &QDialog::accept);
     lay->addWidget(ok, 0, Qt::AlignRight);
+    dlg.exec();
+}
+
+// --- Dibujo de la equipación en la ficha del equipo (DBDAT/CAMISAS) -----------
+void DialogEquipacion::abrirDibujoKit()
+{
+    const QStringList dbc = ficherosEquiposOrdenados();
+    const int n = sp_numero->value();
+    if (le_ruta->text().isEmpty() || n < 1 || n > dbc.size())
+    {
+        QMessageBox::warning(this, "Falta el equipo",
+                             "Indica la ruta de EQUIPOS.DAT y el número de equipo.");
+        return;
+    }
+    QDir juego = QFileInfo(le_ruta->text()).absoluteDir();
+    juego.cdUp();
+    const QString id = QFileInfo(dbc.at(n - 1)).fileName().mid(2, 6);
+    DialogDibujoKit dlg(juego.absolutePath(), id, nombreCortoEquipo(dbc.at(n - 1)), this);
     dlg.exec();
 }

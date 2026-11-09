@@ -18,6 +18,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     pcfutbol_ligas.cpp \
     dialog_ligas.cpp \
+    pcfutbol_dibujokit.cpp \
+    dialog_dibujokit.cpp \
     bbdd_futbol.cpp \
     dialog_estrellas_mundiales.cpp \
     dialog_jugador.cpp \
@@ -40,6 +42,8 @@ HEADERS += \
     util_ventanas.h \
     pcfutbol_ligas.h \
     dialog_ligas.h \
+    pcfutbol_dibujokit.h \
+    dialog_dibujokit.h \
     bbdd_futbol.h \
     dialog_estrellas_mundiales.h \
     dialog_jugador.h \

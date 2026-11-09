@@ -140,6 +140,7 @@ private slots:
     void calcularColorRepresentativo();   // desde el color dominante de la camiseta
     void usarColorPaletaRepresentativo(); // el color seleccionado en la paleta
     void comprobarChoques();              // regla de choques del juego contra todos
+    void abrirDibujoKit();                // DBDAT/CAMISAS: dibujo de la ficha del equipo
 
 private:
     void empujarUndo();
