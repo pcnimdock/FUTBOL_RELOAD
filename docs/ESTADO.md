@@ -23,7 +23,7 @@ Ampliar el editor FUTBOL_RELOAD para PC Fútbol 4.5 y poder:
 | Editar las **características físicas** de los jugadores | ✅ Ya existía en el editor (piel, pelo, altura, peso) |
 | Cambiar **qué equipos** juegan en Primera y Segunda | ✅ Hecho y probado en el juego |
 | Cambiar **cuántos equipos** hay en la liga | ⛔ Descartado por el usuario (9/11/2026): sería rehacer medio juego |
-| Dibujo del kit de la ficha del equipo (`CAMISAS/*.DFG`) | 🟡 Formato descifrado, falta la paleta |
+| Dibujo del kit de la ficha del equipo (`CAMISAS/*.DFG`) | ✅ Hecho y probado en el juego (paleta = foto del estadio o escudo) |
 
 ---
 
@@ -143,15 +143,16 @@ Reglas:
   los kits, así que el juego probablemente lo sustituye según el pelo de cada
   jugador.
 
-### 4.5 Dibujo del kit — `DBDAT/CAMISAS/EQ95xxxx.DFG` (parcial)
+### 4.5 Dibujo del kit — `DBDAT/CAMISAS/EQ95xxxx.DFG` (verificado en el juego)
 
-- Solo 50 equipos. Cabecera `01`, ancho u16 (≈71), alto u16 (≈37), planos
-  `04`, `00 00`; después, por fila, 4 planos de 9 bytes (1 bit por píxel,
-  bit alto primero).
-- Se ve en la ficha del equipo de la Base de datos, junto al botón
-  «Plantilla» (pantalla 130,422). El juego solo pinta desde la columna 16.
-- Índice 13 transparente, 12 sombra. **La paleta de 16 colores cambia según
-  el equipo** (índices 1–4 y 7–11); falta saber de dónde la saca el juego.
+- Solo 50 equipos. Familia A: cabecera de 8 bytes y 4 planos por fila. Sale
+  en la ficha del equipo de la Base de datos, junto al botón «Plantilla».
+- **Paleta = la de toda la ficha:** la de la foto del estadio
+  (`BIGCAMP/ES95xxxx.DFG`) o, si no hay foto, la del escudo grande
+  (`BIGESC/EQ95xxxx.DFG`). Colores **1, 2 y 8** propios del equipo; 9–11 de la
+  foto; el resto, fijos.
+- Editor: botón «Dibujo en la ficha del equipo…» en el editor de
+  equipaciones. Detalle en `equipaciones-y-ligas.md` §2.
 
 ### 4.6 Otros datos útiles
 
@@ -235,7 +236,7 @@ Todas las direcciones de esta documentación son de esa imagen (base
 
 ## 7. Lo que falta, por orden de prioridad
 
-Prioridad actual: **7.2** (dibujo del kit) y después **7.3** (clasificados para Europa).
+Prioridad actual: **7.3** (clasificados para Europa).
 
 ### 7.1 Cambiar el número de equipos de la liga — DESCARTADO
 
@@ -266,12 +267,9 @@ Análisis previo en `equipaciones-y-ligas.md` §4. En resumen:
   4. Si funciona, lo mismo en `PROMANAG.DAT`.
   5. Herramienta y botón en el editor.
 
-### 7.2 Paleta de los dibujos `CAMISAS/*.DFG`
+### 7.2 Paleta de los dibujos `CAMISAS/*.DFG` — HECHO (9/11/2026)
 
-Averiguar de dónde saca el juego los colores 1–4 y 7–11 de cada equipo
-(¿del propio `EQUIPOS.DAT`, de `PALETAS`, del DBC?). Buscar en
-`PCFUTBOL.DAT` el código que carga `dbdat\camisas`. Después, añadir al
-editor ver, exportar e importar ese dibujo.
+Ver §4.5.
 
 ### 7.3 Clasificados para competiciones europeas
 

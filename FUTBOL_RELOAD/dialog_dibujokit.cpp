@@ -117,7 +117,12 @@ static QIcon muestra(QRgb c)
     QPainter p(&pm);
     p.setPen(Qt::gray);
     p.drawRect(0, 0, 21, 15);
-    return QIcon(pm);
+    p.end();
+    // Mismo aspecto aunque el botón esté desactivado (colores fijos): si no,
+    // Qt agrisa la muestra y el negro o el rojo parecen grises.
+    QIcon icono(pm);
+    icono.addPixmap(pm, QIcon::Disabled);
+    return icono;
 }
 
 void DialogDibujoKit::refrescar()

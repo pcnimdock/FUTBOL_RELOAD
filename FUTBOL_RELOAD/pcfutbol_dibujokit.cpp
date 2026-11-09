@@ -1,5 +1,5 @@
 #include "pcfutbol_dibujokit.h"
-#include "pcfutbol_imagenes.h"
+#include <climits>
 
 #include <QDir>
 #include <QFile>
@@ -169,10 +169,26 @@ QImage PCFutbolDibujoKit::imagen(int escala) const
 void PCFutbolDibujoKit::importar(const QImage &img)
 {
     if (!cargado() || img.isNull()) return;
-    const QImage q = PCFutbolImagenes::cuantizarAPaleta(img, m_ancho, m_alto, m_paleta);
+    // Escalado sin suavizar (no inventa colores intermedios) y color más cercano
+    const QImage q = img.convertToFormat(QImage::Format_RGB32)
+                         .scaled(m_ancho, m_alto, Qt::IgnoreAspectRatio, Qt::FastTransformation);
     for (int y = 0; y < m_alto; y++)
+    {
         for (int x = 0; x < m_ancho; x++)
-            m_indices[y * m_ancho + x] = static_cast<quint8>(q.pixelIndex(x, y) & 15);
+        {
+            const QRgb c = q.pixel(x, y);
+            int mejor = 0, dMejor = INT_MAX;
+            for (int i = 0; i < m_paleta.size(); i++)
+            {
+                const int dr = qRed(c) - qRed(m_paleta.at(i));
+                const int dg = qGreen(c) - qGreen(m_paleta.at(i));
+                const int db = qBlue(c) - qBlue(m_paleta.at(i));
+                const int dist = dr * dr + dg * dg + db * db;
+                if (dist < dMejor) { dMejor = dist; mejor = i; }
+            }
+            m_indices[y * m_ancho + x] = static_cast<quint8>(mejor);
+        }
+    }
 }
 
 bool PCFutbolDibujoKit::modificado() const
@@ -235,6 +251,7 @@ bool PCFutbolDibujoKit::guardar(QString *error, QStringList *informe)
             QByteArray d = *dst.datos;
             for (int idx : {1, 2, 8})
             {
+                if (m_paleta.at(idx) == m_paletaOrig.at(idx)) continue; // sólo lo cambiado
                 d[2 + 3 * idx]     = char(qRed(m_paleta.at(idx)));
                 d[2 + 3 * idx + 1] = char(qGreen(m_paleta.at(idx)));
                 d[2 + 3 * idx + 2] = char(qBlue(m_paleta.at(idx)));

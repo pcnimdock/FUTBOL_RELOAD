@@ -105,17 +105,39 @@ partidos en los que la 2ª equipación tampoco evita el choque.
 
 ---
 
-## 2. Dibujos de kit `DBDAT/CAMISAS/EQ95xxxx.DFG` (parcial)
+## 2. Dibujos de kit `DBDAT/CAMISAS/EQ95xxxx.DFG` (verificado en el juego)
 
-Son imágenes de la "familia A" (cabecera `01 47 00 25 00 04 00 00`: 71×37,
-4 planos), con las medias, la camiseta y el pantalón. El exportador de imágenes
-existente ya las trata.
+Dibujo de camiseta y pantalón de la ficha del equipo (Base de datos, junto al
+botón «Plantilla»). Solo hay 50. Son de "familia A": cabecera de 8 bytes
+`01 | ancho u16 | alto u16 | 04 00 00` (normalmente 71×37) y, por fila,
+4 planos de `(ancho+7)/8` bytes. No llevan paleta.
 
-**Pendiente:** su paleta de 16 colores no es fija. Los índices 0, 5, 6 y 12–15
-son siempre negro, azul, rojo y grises/blanco, pero 1–4 y 7–11 cambian por
-equipo (el 1 es morado en el Valladolid y negro en el Mallorca; el 8, verde en
-el Betis). El juego carga esos colores en tiempo de ejecución; falta averiguar
-de dónde.
+**La paleta es la de toda la ficha del equipo**, y sale de:
+
+- la **foto del estadio**, `DBDAT/BIGCAMP/ES95xxxx.DFG` (familia B: `00 10` +
+  16 × RGB), si existe (39 equipos);
+- si no hay foto, del **escudo grande**, `DBDAT/BIGESC/EQ95xxxx.DFG` (11 de
+  los 50, por ejemplo el Mérida).
+
+Comprobado en DOSBox cambiando colores en esos ficheros (Betis y Mérida):
+cambian a la vez el dibujo, las cintas y el escudo grande. La paleta propia
+del escudo **no** se usa cuando hay foto del estadio.
+
+| Colores | Uso |
+|---|---|
+| 1, 2, 8 | **propios del equipo** (los de su camiseta, escudo y cintas) |
+| 9–11 | de la foto del estadio (magenta, sin uso, en los escudos) |
+| 0, 3–7, 12–15 | fijos del interfaz, iguales en todos los equipos; el 13 es el gris del fondo |
+
+Los valores van en 8 bits, pero la VGA solo usa 6 (el juego hace `>> 2`).
+
+**En el editor:** botón **«Dibujo en la ficha del equipo…»** del editor de
+equipaciones (`dialog_dibujokit`, `pcfutbol_dibujokit`). Muestra el dibujo con
+los colores reales, permite sustituir un color por otro, exportar e importar
+PNG (se ajusta a los 16 colores) y cambiar los colores de equipo 1, 2 y 8.
+Estos se guardan en la foto del estadio y en el escudo grande, solo los
+cambiados. Todo con copia `.bak`. Probado en el juego: Betis con rayas rojas
+en el dibujo y su color 1 en azul.
 
 ---
 
