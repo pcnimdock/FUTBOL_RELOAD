@@ -270,3 +270,18 @@ Al exportar, algunas imágenes no salían con los colores del juego:
   igual que lo editado.
 - **No comprobado dentro del juego** (sorteo de Copa, palmarés de
   competiciones europeas).
+
+### GFX01 (10/11/2026) — verificado en el juego
+
+- Solo lo usa `HISTORIA.DAT` (la opción «Historia» del menú). Es un
+  ejecutable LE; aplanado con `tools/le.py`, el nombre `gfx01.dat` se pasa
+  directamente a cada llamada.
+- Sus 5 pantallas fijan la paleta con `call 0x17f80("gfx01.dat", 0x99)`, es
+  decir, **siempre la paleta 3**. El editor usaba la 0: trofeos dorados
+  sobre marrón en vez de plateados sobre azul.
+- **Verificado en DOSBox:** los 16 colores de la pantalla de Historia
+  (comparados a 6 bits) son exactamente los de la paleta 3, y ninguna otra
+  encaja. El trofeo exportado coincide píxel a píxel con el de la captura.
+- **Método útil para el resto:** capturar una pantalla en DOSBox y comparar
+  sus colores, desplazados `>> 2`, con cada paleta. DOSBox pasa de 6 a 8 bits
+  de otra forma que el fichero (`v*4+3`).

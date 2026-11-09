@@ -534,6 +534,12 @@ QPair<QVector<QRgb>, QString> PCFutbolImagenes::obtenerPaletaFamiliaA(const QStr
                 offset >= 380000 && offset <= 530000 && paletas.size() > 8) {
                 idx = 8;
             }
+            // GFX01 (solo lo usa HISTORIA.DAT, la opción «Historia» del menú):
+            // sus 5 pantallas fijan la paleta 3 (call 0x17f80("gfx01.dat",
+            // 0x99)). Verificado en el juego: los 16 colores de la pantalla
+            // de Historia son exactamente los de la paleta 3 (10/11/2026).
+            if (nombreFichero.compare("GFX01.DAT", Qt::CaseInsensitive) == 0 && paletas.size() > 3)
+                idx = 3;
             // GFX04 (solo lo usa PROMANAG.DAT). Sacado del código del juego:
             // cada pantalla fija su paleta con call 0x56220(fichero, n*51) y
             // se ha seguido qué pantalla dibuja cada imagen (9/11/2026).
