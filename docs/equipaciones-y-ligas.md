@@ -190,6 +190,32 @@ IDs de equipo (el número de `EQ95xxxx.DBC`) en u32 little-endian:
   (memoria): 11 pares de Primera y 10 de Segunda, índices de puesto. El resto
   del calendario se genera rotando.
 
+### Clasificados para Europa (verificado en el juego)
+
+Tabla de u32 en `PCMANAG.DAT` (`0xA21AC` en memoria, `0xA7FAC` en el fichero
+4.5) y `PROMANAG.DAT` (`0x9638C` / `0xAA98C`), 15 u32 reservados:
+
+```
+4, 4, FFFF            Copa de Europa: Real Madrid
+3, 3, 2, FFFF         Recopa: Zaragoza, Deportivo
+2, 19, 1, 6, FFFF     UEFA: Betis, Barcelona, Sevilla
+FFFF                  fin
+```
+
+- El primer número de cada grupo es la competición (4, 3, 2); siguen los IDs
+  de equipo y un `FFFF`. La lee la función de `0x1B091` de `PCMANAG`.
+- Se guarda dentro de las ligas grabadas. **Al acabar cada temporada el juego
+  la reescribe** con los clasificados reales (`0x36CF4` pone al campeón en la
+  Copa de Europa). Por eso la del ejecutable solo decide la **1ª temporada**
+  de una partida nueva.
+- Independiente de las tablas de ligas: un equipo de Segunda puede ir a Europa
+  (pasaba con el Madrid tras intercambiarlo con el Mallorca).
+- Probado en DOSBox: con el Mallorca en lugar del Madrid y el Valencia en lugar
+  del Sevilla, el aviso «Competiciones europeas» de la Liga Manager los muestra.
+- En el editor: apartado **«Clasificados para Europa»** de la ventana
+  «Composición de ligas», con un desplegable por plaza. Solo cambia quién va,
+  no cuántos (1 + 2 + 3). `ligas_pcf.py` no lo soporta todavía.
+
 ### En el editor: botón «Composición de ligas»
 
 Tres listas (Primera, Segunda, Segunda B). Se elige un equipo en una y otro

@@ -24,6 +24,7 @@ Ampliar el editor FUTBOL_RELOAD para PC Fútbol 4.5 y poder:
 | Cambiar **qué equipos** juegan en Primera y Segunda | ✅ Hecho y probado en el juego |
 | Cambiar **cuántos equipos** hay en la liga | ⛔ Descartado por el usuario (9/11/2026): sería rehacer medio juego |
 | Dibujo del kit de la ficha del equipo (`CAMISAS/*.DFG`) | ✅ Hecho y probado en el juego (paleta = foto del estadio o escudo) |
+| Clasificados para Europa (1ª temporada) | ✅ Hecho y probado en el juego |
 
 ---
 
@@ -129,8 +130,16 @@ Reglas:
   la composición nueva.
 - Probado con el Levante (sin ficha completa) en Primera: la liga arranca, su
   despacho se abre y sus partidos se juegan.
-- Los clasificados para Europa salen de otra tabla, aún sin localizar: el
-  Madrid, aun en Segunda, juega la Copa de Europa.
+- Los clasificados para Europa salen de otra tabla, ya localizada y editable
+  (ver §4.7).
+
+### 4.7 Clasificados para Europa (verificado en el juego)
+
+- Tabla `4, ids, FFFF, 3, ids, FFFF, 2, ids, FFFF, FFFF` (Copa de Europa,
+  Recopa, UEFA) en `PCMANAG` (`0xA21AC`) y `PROMANAG` (`0x9638C`). Solo decide
+  la 1ª temporada: después el juego la recalcula.
+- Editor: apartado «Clasificados para Europa» en «Composición de ligas».
+  Detalle en `equipaciones-y-ligas.md` §3.
 
 ### 4.4 Características físicas de los jugadores
 
@@ -236,7 +245,7 @@ Todas las direcciones de esta documentación son de esa imagen (base
 
 ## 7. Lo que falta, por orden de prioridad
 
-Prioridad actual: **7.3** (clasificados para Europa).
+Prioridad actual: no queda nada importante; ver §7.4 (menores).
 
 ### 7.1 Cambiar el número de equipos de la liga — DESCARTADO
 
@@ -271,7 +280,9 @@ Análisis previo en `equipaciones-y-ligas.md` §4. En resumen:
 
 Ver §4.5.
 
-### 7.3 Clasificados para competiciones europeas
+### 7.3 Clasificados para competiciones europeas — HECHO (9/11/2026)
+
+Ver §4.7. Lo que sigue es la nota original.
 
 Localizar la tabla de equipos que van a Copa de Europa, Recopa y UEFA en
 `PCMANAG`/`PROMANAG`, para que cuadre con una composición cambiada. Buscar
