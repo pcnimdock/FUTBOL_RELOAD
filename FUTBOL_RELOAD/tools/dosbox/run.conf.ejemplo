@@ -1,0 +1,16 @@
+# Configuración de DOSBox 0.74 para probar el juego desde Linux.
+# Cambia la ruta de "mount" por la carpeta de una COPIA del juego.
+[sdl]
+output=surface
+# imprescindible para que los clics simulados (XTEST) lleguen al juego
+autolock=false
+[dosbox]
+machine=svga_s3
+memsize=16
+[cpu]
+cycles=max
+[mixer]
+nosound=true
+[autoexec]
+mount c /home/vboxuser/pcfutbol_trabajo/juego_pruebas/Futbol45
+c:

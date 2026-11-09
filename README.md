@@ -9,6 +9,8 @@ del juego.
 
 C++ / Qt 5.12+.
 
+**Trabajo en curso (equipaciones del partido, choques de color, composición de ligas):** ver [docs/ESTADO.md](docs/ESTADO.md) y [docs/equipaciones-y-ligas.md](docs/equipaciones-y-ligas.md).
+
 ## 📖 [Documentación completa en la Wiki](https://github.com/pcnimdock/FUTBOL_RELOAD/wiki)
 
 - [Instalación y compilación](https://github.com/pcnimdock/FUTBOL_RELOAD/wiki/Instalacion-y-compilacion)

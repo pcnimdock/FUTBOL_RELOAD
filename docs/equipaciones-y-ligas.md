@@ -1,8 +1,9 @@
 # Equipaciones del partido, botas y composición de las ligas (PC Fútbol 4.5)
 
-Ingeniería inversa hecha en noviembre de 2026 sobre PC Fútbol 4.5. Todo lo
-marcado como **verificado** se ha comprobado con los ficheros del juego; lo
-marcado como **pendiente** no se ha probado dentro del juego (no había DOSBox).
+Ingeniería inversa hecha en noviembre de 2026 sobre PC Fútbol 4.5. Lo marcado
+como **verificado en el juego** se ha comprobado jugando en DOSBox; lo marcado
+como **verificado** a secas, con los ficheros del juego. Para retomar el
+trabajo, empezar por [ESTADO.md](ESTADO.md).
 
 Código relacionado:
 
@@ -13,11 +14,14 @@ Código relacionado:
 | `FUTBOL_RELOAD/pcfutbol_ligas.{h,cpp}` | Localiza y modifica las tablas de composición de ligas |
 | `FUTBOL_RELOAD/dialog_ligas.{h,cpp}` | Ventana «Composición de ligas» del editor |
 | `FUTBOL_RELOAD/tools/ligas_pcf.py` | Lo mismo por línea de comandos |
-| `FUTBOL_RELOAD/tools/le_a_binario.py` | Convierte un ejecutable LE (DOS/4GW) en imágenes planas para desensamblar |
+| `FUTBOL_RELOAD/tools/le_a_binario.py` | Convierte un ejecutable LE (DOS/4GW) en imágenes planas por objeto |
+| `FUTBOL_RELOAD/tools/le_plano.py` | Lo mismo en una sola imagen (base `0x10000`), la que usan las direcciones de este documento |
+| `FUTBOL_RELOAD/tools/buscar_refs.py` | Dónde está una cadena y qué código la referencia |
+| `FUTBOL_RELOAD/tools/dosbox/` | Manejar DOSBox desde Linux para probar en el juego (ver ESTADO.md §6) |
 
 ---
 
-## 1. `PALETAS/EQUIPOS.DAT` es una tabla de recoloreado (verificado)
+## 1. `PALETAS/EQUIPOS.DAT` es una tabla de recoloreado (verificado en el juego)
 
 Cada bloque de 190 bytes no es sólo el icono de la camiseta: es una **tabla de
 consulta (LUT) para los sprites de jugador** de `GRAFICOS/*.EMP`. Al dibujar un
@@ -115,7 +119,7 @@ de dónde.
 
 ---
 
-## 3. Composición de las ligas (verificado en los ficheros)
+## 3. Composición de las ligas (verificado en el juego)
 
 Los ejecutables llevan **varias copias** de la composición, como tablas de
 IDs de equipo (el número de `EQ95xxxx.DBC`) en u32 little-endian:
@@ -167,8 +171,8 @@ IDs de equipo (el número de `EQ95xxxx.DBC`) en u32 little-endian:
 ### En el editor: botón «Composición de ligas»
 
 Tres listas (Primera, Segunda, Segunda B). Se elige un equipo en una y otro
-en otra y se pulsa «Intercambiar». Al guardar se modifican los tres
-ejecutables con copia `.bak`. Las tablas se localizan por contenido, así que
+en otra y se pulsa «Intercambiar». Al guardar se modifican `PCMANAG.DAT` y
+`PROMANAG.DAT` con copia `.bak` (`PCFUTBOL.DAT` no; ver arriba). Las tablas se localizan por contenido, así que
 funciona también con PC Fútbol 4.0 (verificado en lectura: allí la lista
 larga tiene 96 equipos).
 
@@ -183,11 +187,11 @@ python3 FUTBOL_RELOAD/tools/ligas_pcf.py intercambiar JUEGO 13 23
 python3 FUTBOL_RELOAD/tools/ligas_pcf.py fijar        JUEGO --primera id,...(22) --segunda id,...(20)
 ```
 
-Localiza la tabla por su estructura (no por offsets fijos), modifica los tres
-ejecutables a la vez, hace una copia `.bak` la primera vez y verifica lo
-escrito. Avisa si un equipo sin ficha completa o sin dibujo de camiseta va a
-Primera o Segunda. Probado sobre una copia: sólo cambian bytes dentro de la
-tabla. **Pendiente** probar una partida nueva en el juego.
+Localiza la tabla por su estructura (no por offsets fijos), modifica
+`PCMANAG.DAT` y `PROMANAG.DAT` a la vez, hace una copia `.bak` la primera vez
+y verifica lo escrito. Avisa si un equipo sin ficha completa o sin dibujo de
+camiseta va a Primera o Segunda, y si encuentra un `PCFUTBOL.DAT` modificado
+por una versión anterior. Probado en el juego (ver «Probado en el juego»).
 
 Como no se añaden ni quitan `.DBC`, la numeración de `EQUIPOS.DAT` no se ve
 afectada.
