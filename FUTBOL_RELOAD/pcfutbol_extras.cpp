@@ -1033,6 +1033,12 @@ void PCFutbolExtras::importarSonidos(const QString &carpetaNueva, const QString 
             if (original == raw) continue;
         }
 
+        // Copia del original la primera vez (la usa «Restaurar originales»)
+        if (!QFile::exists(ruta + ".bak") && !QFile::copy(ruta, ruta + ".bak"))
+        {
+            r.errores << "No se pudo crear la copia " + nombre + ".RAW.bak";
+            continue;
+        }
         QFile out(ruta);
         if (!out.open(QIODevice::WriteOnly))
         {

@@ -13,6 +13,9 @@ public:
     QString NombreLargo;
     QString Info;
     QString Declaraciones;
+    // Bloques originales (ver JUGADOR::ComentarioBruto)
+    QByteArray InfoBruto, DeclaracionesBruto;
+    QString InfoLeido, DeclaracionesLeido;
     QByteArray minifoto;
     QByteArray bigfoto;
 

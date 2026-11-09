@@ -27,6 +27,8 @@ void JUGADOR::clear()
     Altura=0;
     Peso=0;
     Comentario.clear();
+    ComentarioBruto.clear();
+    ComentarioLeido.clear();
     Precio=0;
     Velocidad=0;
     Regate=0;

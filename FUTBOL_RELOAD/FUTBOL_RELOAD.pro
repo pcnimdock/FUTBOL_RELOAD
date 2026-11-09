@@ -20,6 +20,11 @@ SOURCES += \
     dialog_ligas.cpp \
     pcfutbol_dibujokit.cpp \
     dialog_dibujokit.cpp \
+    pcfutbol_plantillas.cpp \
+    pcfutbol_csv.cpp \
+    dialog_traspasos.cpp \
+    dialog_restaurar.cpp \
+    pcfutbol_temporada_real.cpp \
     bbdd_futbol.cpp \
     dialog_estrellas_mundiales.cpp \
     dialog_jugador.cpp \
@@ -44,6 +49,11 @@ HEADERS += \
     dialog_ligas.h \
     pcfutbol_dibujokit.h \
     dialog_dibujokit.h \
+    pcfutbol_plantillas.h \
+    pcfutbol_csv.h \
+    dialog_traspasos.h \
+    dialog_restaurar.h \
+    pcfutbol_temporada_real.h \
     bbdd_futbol.h \
     dialog_estrellas_mundiales.h \
     dialog_jugador.h \

@@ -36,6 +36,11 @@ public:
     quint8 Altura;
     quint8 Peso;
     QString Comentario;
+    // Bloque del comentario tal y como estaba en el DBC (líneas ya partidas
+    // para la pantalla del juego) y el texto que se leyó de él. Si el
+    // comentario no se edita se vuelve a escribir este bloque byte a byte.
+    QByteArray ComentarioBruto;
+    QString ComentarioLeido;
     quint16 Precio;
     quint8 Velocidad;
     quint8 Regate;

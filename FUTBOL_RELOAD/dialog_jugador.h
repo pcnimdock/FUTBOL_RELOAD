@@ -31,6 +31,9 @@ private:
     Ui::Dialog_jugador *ui;
     JUGADOR jug;
     TRANSFORM_MINIFOTO trans;
+    // Sólo se vuelven a convertir las fotos que el usuario ha cambiado
+    bool m_miniCambiada = false;
+    bool m_bigCambiada = false;
 };
 
 #endif // DIALOG_JUGADOR_H

@@ -1,6 +1,10 @@
 #include "mainwindow.h"
 #include "util_ventanas.h"
 #include "dialog_ligas.h"
+#include "dialog_traspasos.h"
+#include "dialog_restaurar.h"
+#include "pcfutbol_plantillas.h"
+#include "pcfutbol_csv.h"
 #include <QProgressDialog>
 #include <QApplication>
 #include "ui_mainwindow.h"
@@ -14,6 +18,9 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
+#include <QPlainTextEdit>
+#include <QDialogButtonBox>
+#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QPalette>
@@ -93,9 +100,44 @@ MainWindow::MainWindow(QWidget *parent)
         dlg.exec();
     });
 
+    // --- Plantillas: traspasos, hoja de cálculo, comprobación y deshacer ---
+    QHBoxLayout *layoutPlantillas = new QHBoxLayout();
+    QPushButton *btnTraspasos = new QPushButton("Traspasos…", this);
+    QPushButton *btnExportarCsv = new QPushButton(QIcon(":/icons/export.svg"), "Exportar a CSV (Excel)…", this);
+    QPushButton *btnImportarCsv = new QPushButton(QIcon(":/icons/import.svg"), "Importar CSV…", this);
+    QPushButton *btnComprobar = new QPushButton("Comprobar plantillas", this);
+    QPushButton *btnRestaurar = new QPushButton("Restaurar originales…", this);
+    btnTraspasos->setObjectName("btnTraspasos");
+    btnExportarCsv->setObjectName("btnExportarCsv");
+    btnImportarCsv->setObjectName("btnImportarCsv");
+    btnComprobar->setObjectName("btnComprobar");
+    btnRestaurar->setObjectName("btnRestaurar");
+    btnTraspasos->setToolTip("Mover jugadores de un equipo a otro");
+    btnExportarCsv->setToolTip("Guardar jugadores y clubes en CSV para editarlos en Excel o LibreOffice");
+    btnImportarCsv->setToolTip("Cargar un CSV editado (jugadores.csv o equipos.csv)");
+    btnComprobar->setToolTip("Buscar lo que puede colgar el juego: alineaciones, dorsales, letras…");
+    btnRestaurar->setToolTip("Devolver a su estado original los ficheros del juego que el editor ha cambiado");
+    for (QPushButton *b : {btnTraspasos, btnExportarCsv, btnImportarCsv, btnComprobar, btnRestaurar})
+        layoutPlantillas->addWidget(b);
+    connect(btnTraspasos, &QPushButton::clicked, this, [this]() { abrirTraspasos(0); });
+    connect(btnExportarCsv, &QPushButton::clicked, this, &MainWindow::exportarCsv);
+    connect(btnImportarCsv, &QPushButton::clicked, this, &MainWindow::importarCsv);
+    connect(btnComprobar, &QPushButton::clicked, this, [this]() { comprobarPlantillas(false); });
+    connect(btnRestaurar, &QPushButton::clicked, this, &MainWindow::restaurarOriginales);
+
+    // «Buscar equipo»: antes no hacía nada. Oculta las filas que no
+    // coinciden (cada fila sigue siendo el índice del equipo en lista_equipos).
+    connect(ui->lineEdit_3, &QLineEdit::textChanged, this, [this](const QString &f) {
+        for (int i = 0; i < lista_equipos.size(); i++)
+            ui->tableView_equipos->setRowHidden(i,
+                !f.isEmpty() && !lista_equipos.at(i).NombreCorto.contains(f, Qt::CaseInsensitive)
+                             && !lista_equipos.at(i).NombreLargo.contains(f, Qt::CaseInsensitive));
+    });
+
     // Los añade al final del layout principal de la ventana central.
     if (auto *layoutPrincipal = qobject_cast<QVBoxLayout*>(centralWidget()->layout())) {
         layoutPrincipal->addLayout(layoutBotonesImagenes);
+        layoutPrincipal->addLayout(layoutPlantillas);
     }
 
     connect(btnExportar, &QPushButton::clicked, this, &MainWindow::exportarImagenes);
@@ -184,15 +226,15 @@ void MainWindow::on_btn_procesar_clicked()
 
     // --- Detección de la versión del juego (4.0 / 4.5) ---------------------
     version_pcf = detectarVersion(ui->lineEdit->text());
-    db.configurarVersion(version_pcf);
+    db.configurarVersion(version_pcf, ui->lineEdit->text());
     const QString ver_txt = (version_pcf==40) ? "4.0" : "4.5";
     setWindowTitle(tr("Fútbol Reload — Editor de PC Fútbol %1").arg(ver_txt));
     ui->statusbar->showMessage(tr("PC Fútbol %1 detectado — la salida se escribirá en %2")
                                    .arg(ver_txt, db.carpetaSalida()));
 
     // --- Estrellas Mundiales ------------------------------------------------
-    // El fichero se llama EQ959901.DBC en PC Fútbol 4.5 y EQ959900.DBC en
-    // PC Fútbol 4.0. En ambos casos es el último de la lista ordenada y su
+    // El fichero es EQ959900.DBC en las copias reales de 4.0 y 4.5 (ver
+    // BBDD_FUTBOL::configurarVersion). En ambos casos es el último de la lista ordenada y su
     // formato interno es IDÉNTICO (misma cabecera de 0x2C, id u16, nombre,
     // 43 bytes opacos, "SEGUNDA B", 275 bytes opacos y la lista de jugadores),
     // así que basta con leer el que exista y sacarlo de la lista de equipos.
@@ -366,6 +408,7 @@ void MainWindow::on_btn_procesar_clicked()
                 size_cad=arch.at(pos_memoria++);
                 for(temp=0;temp<size_cad;temp++){entrenador.NombreLargo.append(db.descodificar_caracter(arch.at(pos_memoria++)));}
 
+                const quint32 inicioInfo = pos_memoria;
                 quint8 num_cad_entr=arch.at(pos_memoria++);
                 quint8 temp3=0;
                 size_cad=arch.at(pos_memoria++);
@@ -375,6 +418,10 @@ void MainWindow::on_btn_procesar_clicked()
                     size_cad=arch.at(pos_memoria++);
                     temp3++;
                 }
+                // (el bucle ya ha leído el primer byte del bloque siguiente)
+                entrenador.InfoBruto = arch.mid(inicioInfo, pos_memoria - 1 - inicioInfo);
+                entrenador.InfoLeido = entrenador.Info;
+                const quint32 inicioDecl = pos_memoria - 1;
                 num_cad_entr=size_cad;
                 size_cad=arch.at(pos_memoria++);
                 temp3=0;
@@ -384,6 +431,8 @@ void MainWindow::on_btn_procesar_clicked()
                     size_cad=arch.at(pos_memoria++);
                     temp3++;
                 }
+                entrenador.DeclaracionesBruto = arch.mid(inicioDecl, pos_memoria - 1 - inicioDecl);
+                entrenador.DeclaracionesLeido = entrenador.Declaraciones;
             }
             else
             {
@@ -496,6 +545,7 @@ void MainWindow::on_btn_procesar_clicked()
                 for(temp=0;temp<size_cad;temp++){jugador.Internacional.append(db.descodificar_caracter(arch.at(pos_memoria++)));}
                 jugador.Altura=arch.at(pos_memoria++);
                 jugador.Peso=arch.at(pos_memoria++);
+                const quint32 inicioComentario = pos_memoria;
                 quint8 num_cadenas=arch.at(pos_memoria++);
                 quint8 temp2=0;
                 size_cad=arch.at(pos_memoria++);
@@ -505,6 +555,8 @@ void MainWindow::on_btn_procesar_clicked()
                     size_cad=arch.at(pos_memoria++);
                     temp2++;
                 }
+                jugador.ComentarioBruto = arch.mid(inicioComentario, pos_memoria - 1 - inicioComentario);
+                jugador.ComentarioLeido = jugador.Comentario;
 
                 jugador.Precio=size_cad&0xFF;
                 jugador.Precio+=(arch.at(pos_memoria++)&0xFF)*256;
@@ -606,69 +658,13 @@ void MainWindow::on_btn_procesar_clicked()
         list_eq_buttons.at(num_boton_eq)->setIconEQ(im_interface);
     }
 
-    punteros.clear();
-    for(int i=0; i<lista_jugadores_totales.size();i++)
-    {
-        punteros.append(lista_jugadores_totales.at(i).puntero);
-    }
-    for(int i=0; i<estrellas.list_jugador.size();i++)
-    {
-        punteros.append(estrellas.list_jugador.at(i).puntero);
-    }
-    std::sort(punteros.begin(),punteros.end());
+    // Jugadores de los partidos de la temporada real: no pueden salir de su
+    // equipo (ver pcfutbol_temporada_real.h)
+    temporadaReal.cargar(ui->lineEdit->text(), lista_equipos);
+    if (!temporadaReal.error().isEmpty())
+        ui->statusbar->showMessage(tr("Aviso: %1").arg(temporadaReal.error()));
 
-    //mostrar todos los jugadores con su equipo en el tableviewjugadores
-
-    delete model;
-    delete model2;
-
-    model = new QStandardItemModel(lista_jugadores_totales.size(),3,this);
-    model2 = new QStandardItemModel(lista_equipos.size(),1,this);
-
-
-    for(int i=0;i<lista_jugadores_totales.size();i++)
-    {
-        QModelIndex index = model->index(i,1,QModelIndex());
-        model->setData(index,lista_jugadores_totales.at(i).NombreCorto);
-
-        if(lista_jugadores_totales.at(i).minifoto.isEmpty()==false)
-        {
-            QImage im = transf_minifoto.minifoto2QImage(lista_jugadores_totales.at(i).minifoto);
-            index = model->index(i,0,QModelIndex());
-            QStandardItem *item = new QStandardItem();
-            item->setData(QVariant(QPixmap::fromImage(im)), Qt::DecorationRole);
-            //model->setData(index,QVariant(QPixmap::fromImage(im)));
-            model->setItem(i,0,item);
-            // delete item;
-        }
-        //buscar el equipo al que corresponde equipoiddbc
-        QString EqStr;
-        for(int k=0;k<lista_equipos.size();k++)
-        {
-            if(lista_equipos.at(k).EquipoIdDBC==lista_jugadores_totales.at(i).EquipoIdDBC)
-            {EqStr=lista_equipos.at(k).NombreCorto;
-                break;
-            }
-        }
-        index = model->index(i,2,QModelIndex());
-        model->setData(index,EqStr);
-
-    }
-    model->setHeaderData(0, Qt::Horizontal, tr("MiniFoto"), Qt::DisplayRole);
-    model->setHeaderData(1, Qt::Horizontal, tr("Nombre"), Qt::DisplayRole);
-    model->setHeaderData(2, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
-    ui->tableView_jugadores->setModel(model);
-    //mostrar los equipos en tableviewequipos
-
-    for(int i=0;i<lista_equipos.size();i++)
-    {
-        QModelIndex index = model2->index(i,0,QModelIndex());
-        model2->setData(index,lista_equipos.at(i).NombreCorto);
-    }
-
-    model2->setHeaderData(0, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
-    ui->tableView_equipos->setModel(model2);
-
+    refrescarTablas();
     ui->pushButton_2->setEnabled(true);
 
 }
@@ -720,11 +716,13 @@ void MainWindow::EQ_button_clicked(int id)
         dialog_equipo.set_equipo(eq);
         dialog_equipo.set_punteros(punteros);
         dialog_equipo.setRutaJuego(ui->lineEdit->text());
+        dialog_equipo.setTemporadaReal(&temporadaReal);
         if(QDialog::Accepted==dialog_equipo.exec())
         {
             eq =dialog_equipo.get_equipo();
             lista_equipos[num_eq]=eq;
             punteros = dialog_equipo.get_punteros();
+            refrescarTablas();
         }
         else
         {
@@ -752,10 +750,13 @@ void MainWindow::on_tableView_equipos_doubleClicked(const QModelIndex &index)
         dialog_equipo.set_equipo(eq);
         dialog_equipo.set_punteros(punteros);
         dialog_equipo.setRutaJuego(ui->lineEdit->text());
+        dialog_equipo.setTemporadaReal(&temporadaReal);
         if(QDialog::Accepted==dialog_equipo.exec())
         {
             eq =dialog_equipo.get_equipo();
             lista_equipos[num_eq]=eq;
+            punteros = dialog_equipo.get_punteros();
+            refrescarTablas();
         }
         else
         {
@@ -766,6 +767,8 @@ void MainWindow::on_tableView_equipos_doubleClicked(const QModelIndex &index)
 
 void MainWindow::on_pushButton_2_clicked()
 {
+    if (!comprobarPlantillas(true))
+        return;
     QString fileName = QFileDialog::getExistingDirectory(this,
                                                          tr("Carpeta para salvar estructura"));
     if(fileName.isEmpty())
@@ -802,68 +805,22 @@ void MainWindow::on_pushButton_2_clicked()
 
 void MainWindow::on_tableView_jugadores_doubleClicked(const QModelIndex &index)
 {
-    QString nombre_equipo;
-    QString nombre_jugador;
-    JUGADOR jug;
+    // Cada fila guarda (equipo, jugador) en Qt::UserRole; antes se buscaba
+    // por nombre y se podía abrir otro jugador con el mismo comienzo.
+    if (!index.isValid()) return;
+    const QModelIndex ind = model->index(index.row(), 1, QModelIndex());
+    const int num_eq = ind.data(Qt::UserRole).toInt();
+    const int num_jugador = ind.data(Qt::UserRole + 1).toInt();
+    if (num_eq < 0 || num_eq >= lista_equipos.size()) return;
+    if (num_jugador < 0 || num_jugador >= lista_equipos.at(num_eq).lista_jugadores.size()) return;
 
-    if (index.isValid()) {
-        int row = index.row();
-        QModelIndex ind = model->index(row,2,QModelIndex());
-        nombre_equipo = model->data(ind).toString();
-        ind = model->index(row,1,QModelIndex());
-        nombre_jugador = model->data(ind).toString();
-    }
-    else
-    {
-        return;
-    }
-    //buscar el equipo en la lista de equipos
-    quint16 num_eq;
-
-    for(num_eq=0;num_eq<lista_equipos.size();num_eq++)
-    {
-        if(lista_equipos.at(num_eq).NombreCorto.indexOf(nombre_equipo,0,Qt::CaseSensitive)==0)
-        {
-            break;
-        }
-    }
-    if(num_eq>=lista_equipos.size())
-    {
-        return;
-    }
-
-    //buscar el jugador en el equipo
-    quint16 num_jugador=0;
-    quint16 num_jugadores_en_equipo=lista_equipos.at(num_eq).lista_jugadores.size();
-    QString nombre_jug_temp;
-    for(num_jugador=0;num_jugador<num_jugadores_en_equipo;num_jugador++)
-    {
-        nombre_jug_temp=lista_equipos.at(num_eq).lista_jugadores.at(num_jugador).NombreCorto;
-        if(nombre_jug_temp.indexOf(nombre_jugador,0,Qt::CaseSensitive)==0)
-        {
-            jug=lista_equipos.at(num_eq).lista_jugadores.at(num_jugador);
-            break;
-        }
-    }
-    if(jug.NombreCorto.isEmpty())
-    {
-        return;
-    }
     Dialog_jugador dialog_jug;
-
-    dialog_jug.set_jugador(jug);
-    if(QDialog::Accepted==dialog_jug.exec())
+    dialog_jug.set_jugador(lista_equipos.at(num_eq).lista_jugadores.at(num_jugador));
+    if (QDialog::Accepted == dialog_jug.exec())
     {
-        jug =dialog_jug.get_jugador();
-        lista_equipos[num_eq].lista_jugadores[num_jugador]=jug;
+        lista_equipos[num_eq].lista_jugadores[num_jugador] = dialog_jug.get_jugador();
+        refrescarTablas();
     }
-    else
-    {
-
-    }
-
-
-
 }
 
 
@@ -1102,61 +1059,8 @@ void MainWindow::on_lineEdit_textChanged(const QString &arg1)
 
 void MainWindow::on_lineEdit_2_textChanged(const QString &arg1)
 {
-    //linedit de busqueda de jugador
-   QList <quint32> IdBC;
-    lista_busqueda_jugador.clear();
-    lista_busqueda_equipo.clear();
-    lista_busqueda_minifoto.clear();
-
-    for(int i=0; i<lista_jugadores_totales.size(); i++)
-    {
-        if(lista_jugadores_totales.at(i).NombreCorto.indexOf(arg1,0,Qt::CaseInsensitive)!=(-1))
-        {
-           lista_busqueda_jugador.append(lista_jugadores_totales.at(i).NombreCorto);
-           lista_busqueda_minifoto.append(lista_jugadores_totales.at(i).minifoto);
-           IdBC.append(lista_jugadores_totales.at(i).EquipoIdDBC);
-        }
-    }
-
-    //settear model con nueva lista
-    delete model;
-
-    model = new QStandardItemModel(lista_busqueda_jugador.size(),3,this);
-
-
-    for(int i=0;i<lista_busqueda_jugador.size();i++)
-    {
-        QModelIndex index = model->index(i,1,QModelIndex());
-        model->setData(index,lista_busqueda_jugador.at(i));
-
-        if(lista_busqueda_minifoto.at(i).isEmpty()==false)
-        {
-            QImage im = transf_minifoto.minifoto2QImage(lista_busqueda_minifoto.at(i));
-            index = model->index(i,0,QModelIndex());
-            QStandardItem *item = new QStandardItem();
-            item->setData(QVariant(QPixmap::fromImage(im)), Qt::DecorationRole);
-            model->setItem(i,0,item);
-
-        }
-        //buscar el equipo al que corresponde equipoiddbc
-        QString EqStr;
-        for(int k=0;k<(lista_equipos.size());k++)
-        {
-            if(lista_equipos.at(k).EquipoIdDBC==IdBC.at(i))
-            {
-                EqStr=lista_equipos.at(k).NombreCorto;
-                break;
-            }
-        }
-        index = model->index(i,2,QModelIndex());
-        model->setData(index,EqStr);
-
-    }
-    model->setHeaderData(0, Qt::Horizontal, tr("MiniFoto"), Qt::DisplayRole);
-    model->setHeaderData(1, Qt::Horizontal, tr("Nombre"), Qt::DisplayRole);
-    model->setHeaderData(2, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
-    ui->tableView_jugadores->setModel(model);
-
+    // búsqueda de jugador
+    llenarTablaJugadores(arg1);
 }
 
 void MainWindow::on_pushButton_estrellas_clicked()
@@ -1371,7 +1275,7 @@ void MainWindow::importarSonidos()
 
     if (QMessageBox::question(this, "Confirmar",
             "Se van a sobrescribir los ficheros .RAW de:\n" + carpetaJuego +
-            "\n\nHaz una copia de seguridad antes si no la tienes.\n\n¿Continuar?",
+            "\n\nLa primera vez se guarda una copia .bak de cada fichero (se puede deshacer con «Restaurar originales»).\n\n¿Continuar?",
             QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
         return;
 
@@ -1395,30 +1299,24 @@ void MainWindow::importarSonidos()
 // ---------------------------------------------------------------------------
 // Detección de la versión de PC Fútbol instalada en la carpeta indicada.
 //
-// Criterios, en orden de fiabilidad:
-//   1) COMFILE.DAT empieza con la cadena ASCII "PC FUTBOL v4.0" / "v4.5".
-//   2) Presencia del ejecutable FUTBOL4.EXE (4.0) o FUTBOL45.EXE (4.5).
-//   3) Nombre del fichero de Estrellas Mundiales: EQ959900.DBC (4.0) frente a
-//      EQ959901.DBC (4.5, donde EQ959900 tiene otro cometido).
-// Si nada concluye, se asume 4.5 (comportamiento histórico del editor).
+// Comprobado con las dos copias reales (zips de 4.0 y 4.5):
+//   - COMFILE.DAT dice "v3.0" en la 4.5, así que no sirve.
+//   - Las DOS versiones llaman EQ959900.DBC a las Estrellas Mundiales.
+//   - Las DOS tienen futbol4.exe (en la 4.5, en minúsculas).
+//   - Sólo la 4.5 trae INFOFUT.EXE, ACTUALIZ.EXE y pcFut4.exe.
+// Los nombres se comparan sin distinguir mayúsculas (en Linux sí importan).
+// Si nada concluye, se asume 4.5.
 // ---------------------------------------------------------------------------
 int MainWindow::detectarVersion(const QString &rutaJuego)
 {
-    QFile com(rutaJuego + "/COMFILE.DAT");
-    if(com.open(QIODevice::ReadOnly))
-    {
-        const QByteArray cab = com.read(64);
-        com.close();
-        if(cab.contains("v4.0")) return 40;
-        if(cab.contains("v4.5")) return 45;
-    }
-
-    if(QFile::exists(rutaJuego + "/FUTBOL4.EXE"))  return 40;
-    if(QFile::exists(rutaJuego + "/FUTBOL45.EXE")) return 45;
-
-    if(QFile::exists(rutaJuego + "/DBDAT/EQ959901.DBC")) return 45;
-    if(QFile::exists(rutaJuego + "/DBDAT/EQ959900.DBC")) return 40;
-
+    const QStringList ficheros = QDir(rutaJuego).entryList(QDir::Files);
+    auto hay = [&ficheros](const QString &nombre) {
+        return ficheros.contains(nombre, Qt::CaseInsensitive);
+    };
+    if(hay("INFOFUT.EXE") || hay("ACTUALIZ.EXE") || hay("PCFUT4.EXE") || hay("FUTBOL45.EXE"))
+        return 45;
+    if(hay("FUTBOL4.EXE") || hay("CRACK.EXE"))
+        return 40;
     return 45;
 }
 
@@ -1435,4 +1333,269 @@ QString MainWindow::rutaJuegoActual() const
     if (!QDir(ruta).exists())  return QString();
     if (!QDir(ruta + "/DBDAT").exists()) return QString();
     return ruta;
+}
+
+
+// ---------------------------------------------------------------------------
+// Tablas de la ventana principal. Se rehacen desde lista_equipos después de
+// cualquier cambio (ficha, traspasos, CSV) para que no muestren datos viejos.
+// ---------------------------------------------------------------------------
+void MainWindow::refrescarTablas()
+{
+    lista_jugadores_totales.clear();
+    for (const EQUIPO &eq : lista_equipos)
+        lista_jugadores_totales.append(eq.lista_jugadores);
+
+    punteros.clear();
+    for (const JUGADOR &j : lista_jugadores_totales) punteros.append(j.puntero);
+    for (const JUGADOR &j : estrellas.list_jugador) punteros.append(j.puntero);
+    std::sort(punteros.begin(), punteros.end());
+
+    llenarTablaJugadores(ui->lineEdit_2->text());
+
+    QStandardItemModel *viejo = model2;
+    model2 = new QStandardItemModel(lista_equipos.size(), 1, this);
+    for (int i = 0; i < lista_equipos.size(); i++)
+        model2->setData(model2->index(i, 0), lista_equipos.at(i).NombreCorto);
+    model2->setHeaderData(0, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
+    ui->tableView_equipos->setModel(model2);
+    delete viejo;
+    for (int i = 0; i < lista_equipos.size(); i++)        // mantener el filtro de equipos
+        ui->tableView_equipos->setRowHidden(i, !ui->lineEdit_3->text().isEmpty() &&
+            !lista_equipos.at(i).NombreCorto.contains(ui->lineEdit_3->text(), Qt::CaseInsensitive) &&
+            !lista_equipos.at(i).NombreLargo.contains(ui->lineEdit_3->text(), Qt::CaseInsensitive));
+
+    on_horizontalScrollBar_valueChanged(ui->horizontalScrollBar->value());
+}
+
+void MainWindow::llenarTablaJugadores(const QString &filtro)
+{
+    QStandardItemModel *viejo = model;
+    model = new QStandardItemModel(0, 3, this);
+    int fila = 0;
+    for (int e = 0; e < lista_equipos.size(); e++)
+    {
+        const EQUIPO &eq = lista_equipos.at(e);
+        for (int k = 0; k < eq.lista_jugadores.size(); k++)
+        {
+            const JUGADOR &j = eq.lista_jugadores.at(k);
+            if (!filtro.isEmpty() && !j.NombreCorto.contains(filtro, Qt::CaseInsensitive))
+                continue;
+            QStandardItem *foto = new QStandardItem();
+            if (!j.minifoto.isEmpty())
+                foto->setData(QVariant(QPixmap::fromImage(transf_minifoto.minifoto2QImage(j.minifoto))),
+                              Qt::DecorationRole);
+            QStandardItem *nombre = new QStandardItem(j.NombreCorto);
+            nombre->setData(e, Qt::UserRole);
+            nombre->setData(k, Qt::UserRole + 1);
+            model->setItem(fila, 0, foto);
+            model->setItem(fila, 1, nombre);
+            model->setItem(fila, 2, new QStandardItem(eq.NombreCorto));
+            fila++;
+        }
+    }
+    model->setHeaderData(0, Qt::Horizontal, tr("MiniFoto"), Qt::DisplayRole);
+    model->setHeaderData(1, Qt::Horizontal, tr("Nombre"), Qt::DisplayRole);
+    model->setHeaderData(2, Qt::Horizontal, tr("Equipo"), Qt::DisplayRole);
+    ui->tableView_jugadores->setModel(model);
+    delete viejo;
+}
+
+bool MainWindow::hayDatosCargados()
+{
+    if (!lista_equipos.isEmpty()) return true;
+    QMessageBox::warning(this, tr("FUTBOL RELOAD"),
+                         tr("Primero elige la carpeta del juego y pulsa «Procesar»."));
+    return false;
+}
+
+void MainWindow::abrirTraspasos(int equipoInicial)
+{
+    if (!hayDatosCargados()) return;
+    DialogTraspasos dlg(lista_equipos, equipoInicial, &temporadaReal, this);
+    if (dlg.exec() == QDialog::Accepted && dlg.numeroTraspasos() > 0)
+    {
+        lista_equipos = dlg.equipos();
+        refrescarTablas();
+        ui->statusbar->showMessage(tr("%1 traspasos hechos. Recuerda pulsar Guardar.")
+                                       .arg(dlg.numeroTraspasos()));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Comprobación de plantillas. Antes de guardar devuelve false si el usuario
+// cancela; con problemas graves sólo se guarda si se corrigen o si el
+// usuario insiste.
+// ---------------------------------------------------------------------------
+bool MainWindow::comprobarPlantillas(bool antesDeGuardar)
+{
+    if (!hayDatosCargados()) return false;
+    for (;;)
+    {
+        const QList<PCFutbolPlantillas::Problema> probs =
+            PCFutbolPlantillas::comprobar(lista_equipos, &temporadaReal);
+        QStringList graves, avisos;
+        bool corregible = false;
+        for (const auto &p : probs)
+        {
+            (p.grave ? graves : avisos) << p.texto;
+            corregible |= p.corregible;
+        }
+        if (probs.isEmpty())
+        {
+            if (!antesDeGuardar)
+                QMessageBox::information(this, tr("Comprobar plantillas"),
+                    tr("Todo correcto: %1 equipos revisados, nada que pueda colgar el juego.")
+                        .arg(lista_equipos.size()));
+            return true;
+        }
+        // Antes de guardar, los avisos leves solos no interrumpen
+        if (antesDeGuardar && graves.isEmpty() && !corregible)
+            return true;
+
+        QDialog dlg(this);
+        dlg.setWindowTitle(tr("Comprobar plantillas"));
+        dlg.resize(760, 520);
+        QVBoxLayout *lay = new QVBoxLayout(&dlg);
+        QLabel *cab = new QLabel(&dlg);
+        cab->setWordWrap(true);
+        cab->setText(graves.isEmpty()
+            ? tr("No hay nada grave. %1 avisos (cosas que no están en el juego original o que "
+                 "pueden verse raras):").arg(avisos.size())
+            : tr("<b>%1 problemas graves</b> (pueden colgar el juego o estropear el fichero) "
+                 "y %2 avisos:").arg(graves.size()).arg(avisos.size()));
+        lay->addWidget(cab);
+        QPlainTextEdit *txt = new QPlainTextEdit(&dlg);
+        txt->setReadOnly(true);
+        QStringList lineas;
+        for (const QString &g : graves) lineas << "✖ " + g;
+        for (const QString &a : avisos) lineas << "⚠ " + a;
+        txt->setPlainText(lineas.join("\n"));
+        lay->addWidget(txt, 1);
+        QDialogButtonBox *bb = new QDialogButtonBox(&dlg);
+        QPushButton *bCorregir = corregible
+            ? bb->addButton(tr("Corregir automáticamente"), QDialogButtonBox::ActionRole) : nullptr;
+        QPushButton *bSeguir = antesDeGuardar
+            ? bb->addButton(graves.isEmpty() ? tr("Guardar así") : tr("Guardar igualmente"),
+                            QDialogButtonBox::AcceptRole) : nullptr;
+        bb->addButton(antesDeGuardar ? tr("Cancelar") : tr("Cerrar"), QDialogButtonBox::RejectRole);
+        QAbstractButton *pulsado = nullptr;
+        connect(bb, &QDialogButtonBox::clicked, &dlg, [&](QAbstractButton *b) { pulsado = b; dlg.done(0); });
+        lay->addWidget(bb);
+        dlg.exec();
+
+        if (pulsado && pulsado == bCorregir)
+        {
+            const QStringList hecho = PCFutbolPlantillas::corregirAutomaticamente(lista_equipos);
+            refrescarTablas();
+            QMessageBox mb(QMessageBox::Information, tr("Corregido"),
+                           tr("%1 correcciones hechas.").arg(hecho.size()), QMessageBox::Ok, this);
+            mb.setDetailedText(hecho.join("\n"));
+            mb.exec();
+            continue;       // volver a comprobar
+        }
+        return pulsado && pulsado == bSeguir;
+    }
+}
+
+void MainWindow::exportarCsv()
+{
+    if (!hayDatosCargados()) return;
+    const QString dir = QFileDialog::getExistingDirectory(this, tr("Carpeta donde guardar los CSV"));
+    if (dir.isEmpty()) return;
+    const QString fj = dir + "/jugadores.csv", fe = dir + "/equipos.csv", fl = dir + "/LEEME_CSV.txt";
+    if ((QFile::exists(fj) || QFile::exists(fe)) &&
+        QMessageBox::question(this, tr("Exportar CSV"),
+            tr("Ya hay jugadores.csv o equipos.csv en esa carpeta. ¿Sobrescribirlos?"),
+            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+    QString err;
+    if (!PCFutbolCsv::exportarJugadores(lista_equipos, fj, &err) ||
+        !PCFutbolCsv::exportarEquipos(lista_equipos, fe, &err) ||
+        !PCFutbolCsv::escribirLeeme(fl, &err))
+    {
+        QMessageBox::critical(this, tr("Exportar CSV"), err);
+        return;
+    }
+    QMessageBox::information(this, tr("Exportar CSV"),
+        tr("Guardados:\n%1  (%2 jugadores)\n%3  (%4 clubes)\n%5  (explicación de columnas y códigos)\n\n"
+           "Ábrelos con Excel o LibreOffice, cámbialos y cárgalos con «Importar CSV…».")
+            .arg(fj).arg(lista_jugadores_totales.size()).arg(fe).arg(lista_equipos.size()).arg(fl));
+}
+
+void MainWindow::importarCsv()
+{
+    if (!hayDatosCargados()) return;
+    const QString ruta = QFileDialog::getOpenFileName(this, tr("Importar CSV"), QString(),
+                                                      tr("CSV (*.csv *.txt);;Todos (*)"));
+    if (ruta.isEmpty()) return;
+    PCFutbolCsv::Tabla t;
+    QString err;
+    if (!PCFutbolCsv::leer(ruta, &t, &err))
+    {
+        QMessageBox::critical(this, tr("Importar CSV"), err);
+        return;
+    }
+
+    QList<EQUIPO> copia = lista_equipos;
+    PCFutbolCsv::Resultado r;
+    if (t.tipo == PCFutbolCsv::Jugadores)
+    {
+        bool borrar = false;
+        const QStringList ausentes = PCFutbolCsv::jugadoresAusentes(lista_equipos, t);
+        if (!ausentes.isEmpty())
+        {
+            QMessageBox mb(QMessageBox::Question, tr("Importar CSV"),
+                tr("%1 jugadores del editor no están en el CSV (por ejemplo: %2).\n\n"
+                   "¿Darlos de baja (quitarlos de su equipo)?\n"
+                   "«No» los deja como están.")
+                    .arg(ausentes.size()).arg(ausentes.mid(0, 3).join(", ")),
+                QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, this);
+            mb.setDefaultButton(QMessageBox::No);
+            mb.setDetailedText(ausentes.join("\n"));
+            const int resp = mb.exec();
+            if (resp == QMessageBox::Cancel) return;
+            borrar = resp == QMessageBox::Yes;
+        }
+        QList<quint16> otros;
+        for (const JUGADOR &j : estrellas.list_jugador) otros << j.puntero;
+        r = PCFutbolCsv::importarJugadores(copia, otros, t, borrar, &temporadaReal);
+    }
+    else
+        r = PCFutbolCsv::importarEquipos(copia, t);
+
+    QString resumen = (t.tipo == PCFutbolCsv::Jugadores)
+        ? tr("Jugadores modificados: %1\nTraspasos: %2\nAltas: %3\nBajas: %4")
+              .arg(r.modificados).arg(r.traspasos).arg(r.nuevos).arg(r.borrados)
+        : tr("Clubes modificados: %1").arg(r.modificados);
+    resumen += tr("\n\n(%1 filas leídas, %2, separador «%3»)")
+                   .arg(t.filas.size()).arg(t.codificacion, t.separador == '\t' ? QString("tab") : QString(t.separador));
+    if (!r.avisos.isEmpty())
+        resumen += tr("\n\n%1 avisos (datos ajustados o filas ignoradas): ver detalles.").arg(r.avisos.size());
+    const bool hayCambios = r.modificados + r.traspasos + r.nuevos + r.borrados > 0;
+    QMessageBox mb(QMessageBox::Question, tr("Importar CSV"),
+                   resumen + (hayCambios ? tr("\n\n¿Aplicar estos cambios en el editor?\n"
+                                             "(Al juego no se escribe nada hasta pulsar Guardar.)")
+                                         : tr("\n\nNo hay cambios que aplicar.")),
+                   hayCambios ? (QMessageBox::Yes | QMessageBox::No) : QMessageBox::Ok, this);
+    QStringList det = r.detalles;
+    if (!r.avisos.isEmpty()) det << "" << tr("AVISOS:") << r.avisos;
+    mb.setDetailedText(det.join("\n"));
+    if (mb.exec() != QMessageBox::Yes) return;
+
+    lista_equipos = copia;
+    refrescarTablas();
+    ui->statusbar->showMessage(tr("CSV importado. Recuerda pulsar Guardar."));
+}
+
+void MainWindow::restaurarOriginales()
+{
+    QString carpeta = rutaJuegoActual();
+    if (carpeta.isEmpty())
+    {
+        carpeta = QFileDialog::getExistingDirectory(this, tr("Carpeta del juego"));
+        if (carpeta.isEmpty()) return;
+    }
+    DialogRestaurar dlg(carpeta, this);
+    dlg.exec();
 }

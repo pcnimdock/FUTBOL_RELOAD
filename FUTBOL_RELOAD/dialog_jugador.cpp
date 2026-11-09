@@ -61,14 +61,18 @@ int Dialog_jugador::set_jugador(JUGADOR ju)
             jug.FechaDeNacimiento.append('\0');
             jug.FechaDeNacimiento.append('\0');
         }
-        ui->spin_dia->setValue(jug.FechaDeNacimiento.at(0));
-        ui->spin_mes->setValue(jug.FechaDeNacimiento.at(1));
-        ui->spin_anyo->setValue(jug.FechaDeNacimiento.at(2));
+        // 0 = sin dato (hay algún jugador así en el original): que no cambie
+        ui->spin_dia->setMinimum(0);
+        ui->spin_mes->setMinimum(0);
+        ui->spin_anyo->setMinimum(0);
+        ui->spin_dia->setValue(static_cast<quint8>(jug.FechaDeNacimiento.at(0)));
+        ui->spin_mes->setValue(static_cast<quint8>(jug.FechaDeNacimiento.at(1)));
+        ui->spin_anyo->setValue(static_cast<quint8>(jug.FechaDeNacimiento.at(2)));
         ui->le_EquipoProcedencia->setText(jug.EquipoProcedencia);
         ui->le_Internacional->setText(jug.Internacional);
         ui->le_Altura->setText(QString::number((jug.Altura*0.01)));
         ui->le_Peso->setText(QString::number((jug.Peso)));
-        ui->tedit_Comentario->setText(jug.Comentario);
+        ui->tedit_Comentario->setPlainText(jug.Comentario);   // texto plano: no interpretar "<" como HTML
         ui->le_Precio_Juego->setText(QString::number(jug.Precio));
         ui->le_LugarDeNacimiento->setText(jug.LugarDeNacimiento);
         ui->cb_Estado_fichaje->setCurrentIndex(jug.EstadoFichaje);
@@ -188,7 +192,7 @@ void Dialog_jugador::on_btn_guardar_clicked()
     jug.ActRemate = ui->check_Remate->isChecked();
     jug.ActPase = ui->check_Pase->isChecked();
     jug.ActTiro = ui->check_tiro->isChecked();
-    if(ui->btn_MiniFoto->isIcon())
+    if(m_miniCambiada && ui->btn_MiniFoto->isIcon())
     {
         //ui->btn_MiniFoto->setIconMinifoto(trans.minifoto2QImage(jug.minifoto));
         QImage im;
@@ -196,7 +200,7 @@ void Dialog_jugador::on_btn_guardar_clicked()
         jug.minifoto = trans.devolver_minifoto_reemplazo(im);
     }
 
-    if(ui->btn_BigFoto->isIcon())
+    if(m_bigCambiada && ui->btn_BigFoto->isIcon())
     {
         QImage im;
         im = ui->btn_BigFoto->getIconEQ();
@@ -208,12 +212,16 @@ void Dialog_jugador::on_btn_BigFoto_clicked()
 {
     QString fileName = QFileDialog::getOpenFileName(this,tr("Archivo sustitución de BigFoto"),"./" ,tr("Imagenes (*.bmp *.BMP)"));
     QImage im = QImage(fileName);
+    if (im.isNull()) return;    // cancelado o imagen no válida
     ui->btn_BigFoto->setIconBigfoto(im);
+    m_bigCambiada = true;
 }
 
 void Dialog_jugador::on_btn_MiniFoto_clicked()
 {
     QString fileName = QFileDialog::getOpenFileName(this,tr("Archivo sustitución de MiniFoto"),"./" ,tr("Imagenes (*.bmp *.BMP)"));
     QImage im = QImage(fileName);
+    if (im.isNull()) return;    // cancelado o imagen no válida
     ui->btn_MiniFoto->setIconMinifoto(im);
+    m_miniCambiada = true;
 }

@@ -87,12 +87,27 @@ QChar BBDD_FUTBOL::descodificar_caracter(quint8 val)
         val&=(~0x80);
         if(val<48)
         {val=caracteres[val];}
+        else if(val==0x79)
+        {return QChar(0x00B6);}   // 0xF9: comienzo de párrafo en los textos largos (¶)
         else
-        {val=0x20;}
+        {
+            // Fuera de la tabla: es la letra Latin-1 tal cual. Lo usa el
+            // último nombre del club («Atlético de Madrid», «LOGROÑES»…).
+            // Antes se convertía en espacio.
+            return QChar::fromLatin1(char(val|0x80));
+        }
     }
 
     QChar letra=QChar::fromLatin1(val);
     return(letra);
+}
+
+quint8 BBDD_FUTBOL::codificar_caracter_directo(QChar val)
+{
+    const ushort u = val.unicode();
+    if(u >= 0x80 && u <= 0xFF && u != 0xB6)
+        return quint8(u ^ 0x61);
+    return codificar_caracter(val);
 }
 
 quint8 BBDD_FUTBOL::codificar_caracter(QChar val)
@@ -100,6 +115,8 @@ quint8 BBDD_FUTBOL::codificar_caracter(QChar val)
     //comprobar si el carácter está en la tabla
     quint8 i;
     quint8 val2;
+    if(val==QChar(0x00B6))
+    {return quint8(0xF9^0x61);}   // ¶ = código de comienzo de párrafo
     val2=val.toLatin1();
     for(i=0;i<48;i++)
     {
@@ -120,18 +137,19 @@ quint8 BBDD_FUTBOL::codificar_caracter(QChar val)
     return(i);
 }
 
-void BBDD_FUTBOL::configurarVersion(int version)
+void BBDD_FUTBOL::configurarVersion(int version, const QString &rutaJuego)
 {
     version_pcf = (version == 40) ? 40 : 45;
-    if(version_pcf == 40)
+    carpeta_salida = (version_pcf == 40) ? "FUTBOL4_NEW" : "FUTBOL45_NEW";
+    // Las copias reales de 4.0 y 4.5 llaman EQ959900.DBC a las Estrellas
+    // Mundiales; se acepta también EQ959901.DBC por si alguna instalación
+    // lo usa. Se elige el que exista.
+    fichero_estrellas = "EQ959900.DBC";
+    const QStringList dbc = QDir(rutaJuego + "/DBDAT").entryList(QDir::Files);
+    for (const QString &f : dbc)
     {
-        carpeta_salida    = "FUTBOL4_NEW";
-        fichero_estrellas = "EQ959900.DBC";
-    }
-    else
-    {
-        carpeta_salida    = "FUTBOL45_NEW";
-        fichero_estrellas = "EQ959901.DBC";
+        if (f.compare("EQ959901.DBC", Qt::CaseInsensitive) == 0) { fichero_estrellas = f; break; }
+        if (f.compare("EQ959900.DBC", Qt::CaseInsensitive) == 0) fichero_estrellas = f;
     }
 }
 
@@ -141,46 +159,73 @@ quint8 BBDD_FUTBOL::add_equipo(EQUIPO eq, QList<ENTRENADOR> ent_list, QList<JUGA
     return 1;
 }
 
+// ---------------------------------------------------------------------------
+// Textos largos (biografía y declaraciones del entrenador, comentario del
+// jugador). Formato del DBC: 1 byte N, y N+1 líneas, cada una con 1 byte de
+// longitud y sus letras. Son LÍNEAS DE PANTALLA ya partidas por palabras
+// (68-74 letras en los originales, terminadas en espacio); '\\' es salto de
+// línea y el código 0xF9 (que el editor muestra como ¶) empieza párrafo.
+//
+// El editor antiguo las volvía a partir en trozos de 16-25 letras cortando
+// palabras. Ahora: si el texto no se ha editado se escribe el bloque
+// original byte a byte; si se ha editado, se parte por palabras con el
+// ancho de los originales.
+// ---------------------------------------------------------------------------
+QByteArray BBDD_FUTBOL::bloqueTextoLargo(const QString &texto, const QString &leido,
+                                         const QByteArray &bruto)
+{
+    if (!bruto.isEmpty() && texto == leido) return bruto;
+    return devolver_DBC_Info_Declaraciones(texto);
+}
+
 QByteArray BBDD_FUTBOL::devolver_DBC_Info_Declaraciones(QString info)
 {
-    QByteArray ret;
-    ret.clear();
-
-    quint32 info_size=info.size();
-    quint8 tamanyo_del_chunk=16;
-
-    while((info_size/tamanyo_del_chunk)>254) //buscar tamaño para que no sobrepase los 8 bytes
+    // Partir por palabras en líneas de hasta 'ancho' letras (cada línea
+    // conserva el espacio final, como en los originales). Como mucho 256
+    // líneas (el número va en un byte): si no caben se ensancha la línea.
+    info.replace('\r', ' ');
+    info.replace('\n', ' ');
+    QStringList lineas;
+    for (int ancho = 70; ; ancho += 10)
     {
-        tamanyo_del_chunk++;
-    }
-
-    //  if((info_size/tamanyo_del_chunk)%tamanyo_del_chunk==0)
-    //  {num_cad=info_size/tamanyo_del_chunk;}
-    //  else
-    //  {
-    //      num_cad=info_size/tamanyo_del_chunk+1;
-    //  }
-
-    quint8 num_cad;
-    num_cad=info_size/tamanyo_del_chunk;
-    ret.append(num_cad);
-    int k=0;
-    int b=0;
-    while(k<=num_cad)
-    {
-        QString sub;
-        sub = info.mid(k*tamanyo_del_chunk,tamanyo_del_chunk);
-        ret.append(sub.size());
-        int subsize= sub.size();
-        for(int l=0;l<subsize;l++)
+        lineas.clear();
+        QString actual;
+        int i = 0;
+        while (i < info.size())
         {
-            ret.append(codificar_caracter(sub.at(l)));
+            // siguiente palabra con sus espacios detrás
+            int j = i;
+            while (j < info.size() && info.at(j) != ' ') j++;
+            while (j < info.size() && info.at(j) == ' ') j++;
+            QString palabra = info.mid(i, j - i);
+            i = j;
+            while (palabra.size() > ancho)          // palabra más larga que la línea
+            {
+                if (!actual.isEmpty()) { lineas << actual; actual.clear(); }
+                lineas << palabra.left(ancho);
+                palabra = palabra.mid(ancho);
+            }
+            if (actual.size() + palabra.trimmed().size() > ancho && !actual.isEmpty())
+            {
+                lineas << actual;
+                actual.clear();
+            }
+            actual += palabra;
         }
+        if (!actual.isEmpty() || lineas.isEmpty()) lineas << actual;
+        if (lineas.size() <= 256 || ancho >= 250) break;
+    }
+    while (lineas.size() > 256) lineas.removeLast();
 
-        k++;
+    QByteArray ret;
+    ret.append(static_cast<char>(lineas.size() - 1));
+    for (const QString &l : lineas)
+    {
+        const QString t = l.left(255);
+        ret.append(static_cast<char>(t.size()));
+        for (QChar c : t) ret.append(codificar_caracter(c));
     }
     return ret;
-
 }
 
 QByteArray BBDD_FUTBOL::QString2QBytePlusSize(QString cad)
@@ -289,9 +334,11 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq,QString main_path)
         DBC.append(eq.bytes2_array_de_10);
     }
 
+    // Este nombre guarda las letras acentuadas en Latin-1 directo (é = 0xE9),
+    // no con la tabla del juego como los demás (visto en 5 equipos).
     DBC.append(eq.nombre_corto_mayusculas.size());
     for(int i=0;i<eq.nombre_corto_mayusculas.size();i++)
-        DBC.append(codificar_caracter(eq.nombre_corto_mayusculas.at(i)));
+        DBC.append(codificar_caracter_directo(eq.nombre_corto_mayusculas.at(i)));
 
     DBC.append(eq.cosas_bbdd);
 
@@ -308,9 +355,9 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq,QString main_path)
             DBC.append(QString2QBytePlusSize(eq.lista_entrenadores.at(j).NombreLargo));
             //añadir info del entrenador
 
-            DBC.append(devolver_DBC_Info_Declaraciones(eq.lista_entrenadores.at(j).Info));
+            DBC.append(bloqueTextoLargo(eq.lista_entrenadores.at(j).Info, eq.lista_entrenadores.at(j).InfoLeido, eq.lista_entrenadores.at(j).InfoBruto));
             //hacer lo mismo con las declaraciones
-            DBC.append(devolver_DBC_Info_Declaraciones(eq.lista_entrenadores.at(j).Declaraciones));
+            DBC.append(bloqueTextoLargo(eq.lista_entrenadores.at(j).Declaraciones, eq.lista_entrenadores.at(j).DeclaracionesLeido, eq.lista_entrenadores.at(j).DeclaracionesBruto));
         }
         quint8 cero=0;
         DBC.append(cero); //añadir un cero de fin de entrenador
@@ -348,7 +395,7 @@ quint8 BBDD_FUTBOL::guardar_equipo(EQUIPO eq,QString main_path)
             DBC.append(QString2QBytePlusSize(jug.Internacional));
             DBC.append(jug.Altura);
             DBC.append(jug.Peso);
-            DBC.append(devolver_DBC_Info_Declaraciones(jug.Comentario));
+            DBC.append(bloqueTextoLargo(jug.Comentario, jug.ComentarioLeido, jug.ComentarioBruto));
             DBC.append(jug.Precio&0xFF);
             DBC.append((jug.Precio/256)&0xFF);
         }

@@ -12,6 +12,7 @@
 #include "mybutton.h"
 #include "transform_minifoto.h"
 #include "estrellas_mundiales.h"
+#include "pcfutbol_temporada_real.h"
 
 #include <QTableView>
 #include <QItemDelegate>
@@ -79,6 +80,7 @@ private:
     QButtonGroup  EqButtonGroup;
     ESTRELLAS_MUNDIALES estrellas;
     QList <quint16> punteros;
+    PCFutbolTemporadaReal temporadaReal;   // jugadores de JORNAD1/2.DBC
 
     QStandardItemModel *model;
     QStandardItemModel *model2;
@@ -101,6 +103,16 @@ private:
     // ninguna válida). La usan Exportar/Importar imágenes para no volver a
     // preguntar por una carpeta que el usuario ya ha elegido.
     QString rutaJuegoActual() const;
+
+    // Tablas, traspasos, CSV, comprobación y restaurar (ver mainwindow.cpp)
+    void refrescarTablas();
+    void llenarTablaJugadores(const QString &filtro);
+    bool hayDatosCargados();
+    void abrirTraspasos(int equipoInicial);
+    bool comprobarPlantillas(bool antesDeGuardar);
+    void exportarCsv();
+    void importarCsv();
+    void restaurarOriginales();
 
 };
 #endif // MAINWINDOW_H

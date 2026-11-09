@@ -8,6 +8,8 @@
 #include <QButtonGroup>
 #include "dialog_jugador.h"
 
+class PCFutbolTemporadaReal;
+
 
 namespace Ui {
 class DialogEquipos;
@@ -25,6 +27,8 @@ public:
     QList <quint16> get_punteros();
     EQUIPO get_equipo();
     void setRutaJuego(const QString &ruta);
+    // Jugadores de la temporada real: no se pueden quitar de la plantilla
+    void setTemporadaReal(const PCFutbolTemporadaReal *real) { m_real = real; }
      EQUIPO eq;
      TRANSFORM_MINIFOTO trans;
 
@@ -46,6 +50,10 @@ private:
     void update_model();
     QList <quint16> punteros;
     QString rutaJuego;
+    // Sólo se vuelven a convertir los escudos que el usuario ha cambiado
+    bool m_escudoCambiado = false;
+    const PCFutbolTemporadaReal *m_real = nullptr;
+    bool m_escudoSimCambiado = false;
 
 
 };

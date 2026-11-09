@@ -13,6 +13,10 @@ void ENTRENADOR::clear()
     NombreLargo.clear();
     Info.clear();
     Declaraciones.clear();
+    InfoBruto.clear();
+    DeclaracionesBruto.clear();
+    InfoLeido.clear();
+    DeclaracionesLeido.clear();
     minifoto.clear();
     bigfoto.clear();
 

@@ -1,4 +1,7 @@
 #include "dialogequipos.h"
+#include "pcfutbol_plantillas.h"
+#include "pcfutbol_temporada_real.h"
+#include <QMessageBox>
 #include "util_ventanas.h"
 #include "ui_dialogequipos.h"
 #include "dialog_equipacion.h"
@@ -84,8 +87,7 @@ DialogEquipos::~DialogEquipos()
 int DialogEquipos::set_equipo(EQUIPO ptr_eq)
 {
     eq=ptr_eq;
-    int n = eq.aforo;
-    ui->le_Aforo->setText(QString::number(n));
+    ui->le_Aforo->setText(QString::number(eq.aforo));
     ui->le_Estadio->setText(eq.estadio);
     ui->le_n_socios->setText(QString::number(eq.num_socios));
     ui->le_proveedor->setText(eq.proveedor);
@@ -195,15 +197,19 @@ void DialogEquipos::boton_group_clicked(int id)
     //escudo de equipo
     if(id==0)
     {
-        QString fileName = QFileDialog::getOpenFileName(this,tr("Archivo sustitución de EscudoSim"),"./" ,tr("Imagenes (*.bmp *.BMP)"));
+        QString fileName = QFileDialog::getOpenFileName(this,tr("Archivo sustitución de Escudo"),"./" ,tr("Imagenes (*.bmp *.BMP)"));
         QImage im = QImage(fileName);
+        if (im.isNull()) return;    // cancelado o imagen no válida: no tocar el escudo
         ui->btn_ESCUDO->setIconEQ(im);
+        m_escudoCambiado = true;
     }
     else
     {
         //escudo de simulador
-        QString fileName = QFileDialog::getOpenFileName(this,tr("Archivo sustitución de Escudo"),"./" ,tr("Imagenes (*.bmp *.BMP)"));
+        QString fileName = QFileDialog::getOpenFileName(this,tr("Archivo sustitución de EscudoSim"),"./" ,tr("Imagenes (*.bmp *.BMP)"));
         QImage im = QImage(fileName);
+        if (im.isNull()) return;    // cancelado o imagen no válida: no tocar el escudo
+        m_escudoSimCambiado = true;
         if(eq.esc_sim.size()<1500)
         {
             ui->btn_ESCUDO_SIM->setIconEQ_italiano(im);
@@ -232,8 +238,11 @@ void DialogEquipos::on_btn_guardar_clicked()
     eq.NombreMayusculas=ui->le_Nombre_Mayusculas->text();
     eq.presupuesto_juego=ui->le_presupuesto_juego->text().toUInt();
     eq.nombre_corto_mayusculas=ui->le_nombre_corto_mayusculas->text();
-    eq.miniesc= trans.devolver_miniesc_reemplazo(ui->btn_ESCUDO->getIconEQ());
-    eq.esc_sim = trans.devolver_fotosim_reemplazo(ui->btn_ESCUDO_SIM->getIconEQ());
+    // Antes se volvían a convertir siempre, aunque no se hubieran tocado
+    if (m_escudoCambiado)
+        eq.miniesc= trans.devolver_miniesc_reemplazo(ui->btn_ESCUDO->getIconEQ());
+    if (m_escudoSimCambiado)
+        eq.esc_sim = trans.devolver_fotosim_reemplazo(ui->btn_ESCUDO_SIM->getIconEQ());
 
 
 }
@@ -294,76 +303,47 @@ void DialogEquipos::update_model()
 
 void DialogEquipos::on_btn_mas_jugador_clicked()
 {
-    //se ha apretado para añadir un nuevo jugador
-    //hacer un jugador genérico
-    JUGADOR j;
-    j.NombreCorto="xxx";
-    j.NombreLargo="xxx";
-    j.Pelo=0;
-    j.Peso=0;
-    j.Piel=0;
-    j.Altura=180;
-    j.Precio=20;
-    j.Regate=50;
-    j.ActPase=0;
-    j.ActTiro=0;
-    j.bigfoto.clear();
-    j.Agilidad=50;
-    j.minifoto.clear();
-    j.ActRemate=0;
-    j.Velocidad=50;
-    j.ActTecnica=0;
-    j.Comentario=" ";
-    j.Extranjero=0;
-    j.Agresividad=50;
-    j.EquipoIdDBC= eq.EquipoIdDBC;
-    j.EstadoFichaje=0;
-    j.Internacional="0";
-    j.DemarcacionPref=1;
-    j.DemarcacionesSecundarias.clear();
-    j.DemarcacionesSecundarias.append(5,0);
-    j.EquipoProcedencia="Ninguno";
-    j.FechaDeNacimiento.clear();
-    j.FechaDeNacimiento.append(0x01);
-    j.FechaDeNacimiento.append(0x01);
-    j.FechaDeNacimiento.append(0x01);
-    j.LugarDeNacimiento="Narnia";
-    j.PosicionEnCampo=1;
-
-
-
-    //buscar un número de camiseta no usado
-
-    //sacar una lista de los numeros de camiseta
-    QList <quint16> num_camiseta_list;
-    for(int i=0;i<eq.lista_jugadores.size();i++)
-    {
-        num_camiseta_list.append(eq.lista_jugadores.at(i).NumeroCamiseta);
-    }
-    int i=1;
-    while(num_camiseta_list.indexOf(i)>=0)
-    {i++;}
-    j.NumeroCamiseta=i;
-    j.PosicionEnCampo=i;
-
-    //buscar un puntero no usado
-    i=1;
-    while(punteros.indexOf(i)>=0)
-    {i++;}
-    j.puntero=i;
-    punteros.append(i);
+    // Jugador nuevo con dorsal libre, el último en la alineación y un puntero
+    // (número de foto) que no use nadie. Antes se escribía por error el
+    // número en la «posición en el campo» (0-3) y la alineación quedaba sin
+    // poner, lo que podía colgar el juego.
+    quint16 p = 1;
+    while (punteros.contains(p)) p++;
+    for (const JUGADOR &j : eq.lista_jugadores)
+        while (j.puntero == p || punteros.contains(p)) p++;
+    JUGADOR j = PCFutbolPlantillas::jugadorNuevo(eq, p);
+    punteros.append(p);
     eq.lista_jugadores.append(j);
     update_model();
-
- }
+    ui->tableView_jugadores->selectRow(eq.lista_jugadores.size() - 1);
+}
 
 void DialogEquipos::on_btn_menos_jugador_clicked()
 {
-    QModelIndex inx = ui->tableView_jugadores->currentIndex();
-    int num_jug=inx.row();
-    quint16 puntero_jugador=eq.lista_jugadores.at(num_jug).puntero;
-    punteros.removeAt(punteros.indexOf(puntero_jugador));
-    eq.lista_jugadores.removeAt(num_jug);
+    const QModelIndex inx = ui->tableView_jugadores->currentIndex();
+    const int num_jug = inx.row();
+    if (!inx.isValid() || num_jug < 0 || num_jug >= eq.lista_jugadores.size())
+    {
+        QMessageBox::information(this, "Quitar jugador", "Selecciona primero un jugador de la lista.");
+        return;
+    }
+    if (m_real && m_real->juegaPartidosReales(eq.EquipoIdDBC, eq.lista_jugadores.at(num_jug).puntero))
+    {
+        QMessageBox::warning(this, "Quitar jugador",
+            eq.lista_jugadores.at(num_jug).NombreCorto + " juega partidos de la temporada real 95/96 "
+            "con este equipo. Si se quita, el juego no arranca («Jugador no encontrado»).\n\n"
+            "Para llevarlo a otro equipo usa «Traspasos…»: se deja una copia aquí.");
+        return;
+    }
+    if (QMessageBox::question(this, "Quitar jugador",
+            "¿Quitar a " + eq.lista_jugadores.at(num_jug).NombreCorto + " de la plantilla?",
+            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
+        return;
+    const quint16 puntero_jugador = eq.lista_jugadores.at(num_jug).puntero;
+    // la alineación se renumera para que siga yendo de 1 a N
+    PCFutbolPlantillas::quitarJugador(eq, num_jug);
+    bool sigueUsado = false;
+    for (const JUGADOR &j : eq.lista_jugadores) sigueUsado |= j.puntero == puntero_jugador;
+    if (!sigueUsado) punteros.removeOne(puntero_jugador);
     update_model();
-
 }

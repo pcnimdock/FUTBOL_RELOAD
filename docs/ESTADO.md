@@ -7,7 +7,7 @@ ha descubierto, qué está hecho y probado, y qué falta.
 El detalle técnico de cada hallazgo está en
 [equipaciones-y-ligas.md](equipaciones-y-ligas.md); aquí solo el resumen.
 
-Última actualización: 9 de noviembre de 2026.
+Última actualización: 9 de noviembre de 2026 (tarde: plantillas, CSV y temporada real).
 
 ---
 
@@ -26,6 +26,10 @@ Ampliar el editor FUTBOL_RELOAD para PC Fútbol 4.5 y poder:
 | Dibujo del kit de la ficha del equipo (`CAMISAS/*.DFG`) | ✅ Hecho y probado en el juego (paleta = foto del estadio o escudo) |
 | Clasificados para Europa (1ª temporada) | ✅ Hecho y probado en el juego |
 | Participantes de la Copa del Rey | ✅ No hace falta: la juegan todos los equipos de la lista de ligas (visto en el código) |
+| **Traspasos**, altas y bajas con las reglas del juego | ✅ Hecho y probado en el juego (§4.8) |
+| **Exportar/importar a CSV** (Excel) jugadores y clubes | ✅ Hecho; ida y vuelta sin cambios comprobada |
+| **Comprobar plantillas** antes de guardar | ✅ Hecho |
+| **Restaurar originales** (deshacer todo lo escrito en el juego) | ✅ Hecho |
 
 ---
 
@@ -177,13 +181,42 @@ Reglas:
 
 ### 4.6 Otros datos útiles
 
-- `JORNAD1/2.DBC`: calendario y crónicas de la temporada real. Empieza con
-  `u16 jornada, u16 local, u16 visitante`; los registros son de longitud
-  variable (textos con XOR 0x61). Formato completo sin descifrar.
+- `JORNAD1/2.DBC`: partidos de la temporada real. **Formato descifrado**
+  (§4.8 y `docs/plantillas-y-csv.md`).
 - `LIGA.DBC`: histórico de clasificaciones, no la estructura de la liga.
 - Código del juego: ejecutables LE de DOS/4GW. `PCFUTBOL.DAT` es el menú,
   la base de datos y el seguimiento; `PCMANAG.DAT` los modos de liga y el
   amistoso; `PROMANAG.DAT` el Promanager. `pcFut4.exe` es solo el lanzador.
+
+### 4.8 Temporada real: jugadores atados a su equipo (verificado en el juego)
+
+- `JORNAD1.DBC` (Primera 95/96, 462 partidos) y `JORNAD2.DBC` (Segunda,
+  380) guardan las alineaciones con los punteros de los jugadores.
+- **Al arrancar, `PCFUTBOL.DAT` comprueba que cada uno sigue en su equipo.**
+  Si falta uno, sale en bucle «NJugadorEquipo: Jugador no encontrado» y el
+  juego no arranca. Pasó al dar de baja a Buyo y al traspasar a Lopetegi.
+- Son 786 jugadores. El editor no deja darlos de baja y, al traspasarlos,
+  deja una copia en su equipo, como hace el original con los del filial.
+  Probado: el juego arranca y el traspasado sale en su nuevo equipo.
+
+### 4.9 Textos largos y nombres (errores del editor original, corregidos)
+
+- Biografías, declaraciones y comentarios son líneas de pantalla ya
+  partidas por palabras, con el código `0xF9` (viñeta) para empezar
+  párrafo. El editor antiguo los partía en trozos de 16 a 25 letras cortando
+  palabras.
+- Ahora el texto sin tocar se escribe byte a byte, y el editado se parte por
+  palabras. Comprobado en el juego.
+- **Salvar sin cambios deja los 235 DBC de la 4.5 idénticos**; antes
+  cambiaba 42.
+
+### 4.10 Reglas de las plantillas
+
+- Puesto en la alineación de 1 a N sin huecos, sin dorsales repetidos y de
+  16 a 33 jugadores.
+- El puntero es la identidad del jugador y el nombre de su foto. La foto no
+  es obligatoria.
+- Detalle en `docs/plantillas-y-csv.md`.
 
 ---
 
@@ -193,6 +226,7 @@ Commits principales, del más reciente al más antiguo:
 
 | Commit | Qué |
 |---|---|
+| (9/11/2026, tarde) | Traspasos, CSV, «Comprobar plantillas», «Restaurar originales», temporada real (`JORNAD`), textos largos sin estropear, detección de la 4.5, varios errores del editor original. Ver `docs/plantillas-y-csv.md` |
 | `44c1dbf` | Ligas: probado un equipo sin ficha en Primera |
 | `83da4b0` | Ligas: no modificar `PCFUTBOL.DAT` (rompía el juego); ofrece restaurarlo |
 | `c0e8349` | Equipaciones: color representativo y «Comprobar choques» |
@@ -305,7 +339,9 @@ Barcelona (1) y Sevilla (6), cerca de las cadenas "COPA DE EUROPA" y
 ### 7.4 Menores
 
 - ~~Comprobar si el pelo lo cambia el juego por jugador~~: hecho, sí (§4.4).
-- Descifrar `JORNAD*.DBC`. Solo haría falta para cambiar la composición
-  también en la base de datos o el seguimiento de la liga real.
+- ~~Descifrar `JORNAD*.DBC`~~: hecho (§4.8). Faltan por identificar el byte
+  desconocido de la cabecera y los tipos de suceso, pero no hacen falta.
+- Jugar un partido de Liga Manager con plantillas traspasadas. La selección
+  de equipo funciona; el ratón de DOSBox no respondía en esa pantalla.
 - ~~Europa en `ligas_pcf.py`~~: hecho (orden `europa`, §4.7).
 - Subir la rama a GitHub o abrir PR: solo cuando el usuario lo pida.
