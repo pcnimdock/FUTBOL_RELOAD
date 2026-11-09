@@ -113,8 +113,18 @@ que los dos bloques de equipo deben coincidir con local y visitante.
 - El `PCFUTBOL.DAT` de la 4.0 tiene el mismo mensaje «NJugadorEquipo …
   Jugador no encontrado», así que la protección de JORNAD1 hace falta
   igual.
-- **No probado dentro del juego**: la copia del zip pide el escudo del
-  manual (protección anticopia) y no se ha saltado.
+- **Probado en el juego (DOSBox, 9/11/2026):**
+  - Sin Buyo, la 4.0 también se bloquea al arrancar con «Jugador no
+    encontrado — Real Madrid, Índice Jugador: 1». La comprobación va antes
+    de la pantalla del escudo.
+  - Con Lopetegi traspasado dejando copia y un alta nueva, arranca.
+    Lopetegi sale en el Deportivo y «Prueba40» en el Zaragoza, los dos como
+    «Nuevo fichaje».
+  - La copia del zip pide el escudo del manual. El usuario indicó pulsar
+    siempre el primero de la primera fila; a veces hay que repetir porque
+    la pregunta cambia.
+  - El menú de la 4.0 dice «Actualizado hasta la jornada 02»: por eso sus
+    JORNAD son tan pequeños.
 - Comprobado sin abrir el juego:
   - las 234 fichas y equipaciones se abren;
   - EQUIPOS.DAT tiene 468 bloques (234 × 2);
