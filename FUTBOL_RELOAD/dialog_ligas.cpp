@@ -2,6 +2,8 @@
 #include "util_ventanas.h"
 
 #include <QListWidget>
+#include <QPalette>
+#include <QColor>
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -35,6 +37,19 @@ DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog
         QVBoxLayout *l = new QVBoxLayout(gb);
         m_listas[i] = new QListWidget(this);
         m_listas[i]->setSelectionMode(QAbstractItemView::SingleSelection);
+        // Colores fijados también por código: el QSS no siempre llega al
+        // viewport interno de las listas (mismo problema que las tablas de
+        // la ventana principal) y quedaban texto gris claro sobre blanco.
+        {
+            QPalette pal = m_listas[i]->palette();
+            pal.setColor(QPalette::Base, QColor("#202325"));
+            pal.setColor(QPalette::AlternateBase, QColor("#26292b"));
+            pal.setColor(QPalette::Text, QColor("#eaeaea"));
+            pal.setColor(QPalette::WindowText, QColor("#eaeaea"));
+            pal.setColor(QPalette::Highlight, QColor("#86aa1c"));
+            pal.setColor(QPalette::HighlightedText, QColor("#16210a"));
+            m_listas[i]->setPalette(pal);
+        }
         l->addWidget(m_listas[i]);
         cols->addWidget(gb);
         connect(m_listas[i], &QListWidget::itemClicked, this, &DialogLigas::onSeleccion);

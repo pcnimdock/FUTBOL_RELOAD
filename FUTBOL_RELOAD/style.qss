@@ -132,6 +132,20 @@ QTableView {
 QTableView::item { padding: 4px; }
 QTableView::item:hover { background-color: rgba(134, 170, 28, 0.18); }
 
+/* ---- Listas (p. ej. Composición de ligas) ---------------------------------- */
+QListView {
+    background-color: #202325;
+    alternate-background-color: #26292b;
+    color: #eaeaea;
+    border: 1px solid #2c3136;
+    border-radius: 8px;
+    selection-background-color: #86aa1c;
+    selection-color: #16210a;
+}
+QListView::item { padding: 2px 4px; }
+QListView::item:hover { background-color: rgba(134, 170, 28, 0.18); }
+QListView::item:selected { background-color: #86aa1c; color: #16210a; }
+
 QHeaderView::section {
     background-color: #2c3136;
     color: #cfd3d6;
