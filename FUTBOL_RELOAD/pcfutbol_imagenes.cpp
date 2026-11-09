@@ -579,9 +579,85 @@ QVector<QRgb> PCFutbolImagenes::paletaEquipo(const QString &carpetaJuego, const 
     return paletaMinifoto();
 }
 
+// GFX05 (lo usan PCMANAG y PROMANAG) no dice qué paleta usa cada imagen y
+// sus paletas propias son plantillas para colorear camisetas. Las pantallas
+// del juego toman la paleta de GFX03 (PCMANAG: call 0x58090) o de GFX04
+// (PROMANAG: call 0x56220), que son casi iguales. Tabla sacada del código:
+// para cada imagen, la paleta que fija la pantalla que la carga (9/11/2026).
+// Las que no salen en el código se quedan con la paleta de siempre.
+QString PCFutbolImagenes::etiquetaGFX05(int offset, int tamFichero)
+{
+    if (tamFichero != 654491) return QString();     // mismo fichero en 4.0 y 4.5
+    static const QHash<int, int> porOffset = [] {
+        const QVector<QPair<int, QVector<int>>> t = {
+        {0, {126290, 127419, 128548, 129677, 130806, 131935, 133064, 134193,
+              135322, 136451, 137580, 212558, 222131, 568153}},
+        {1, {140911, 166652, 233811, 250326}},
+        {2, {212469, 248796, 250101}},
+        {3, {51068, 57353, 59402, 61451, 63020, 64589, 66262, 67935,
+              68484, 167370, 170181, 177038, 183895, 192785, 211082, 211331}},
+        {4, {211580}},
+        {5, {115973, 116486, 116999, 117512, 118025, 118354, 118683, 119012}},
+        {7, {115073, 115298, 115523, 115748, 222268, 222661}},
+        {8, {222970, 223091, 223212}},
+        {9, {223333, 232362}},
+        {16, {36706, 545396, 546077}},
+        {17, {283714, 288235, 292756, 297277, 301798, 306319, 310840, 315361,
+              319882, 324403, 328876, 333397, 337918, 339355, 339736, 341173,
+              341542, 342775, 343144, 343985, 344242, 344499, 344756, 344837,
+              344954, 345167, 345576, 345985, 346654, 347647, 349028, 351897,
+              354786, 358279, 362208, 366897, 371946, 376995, 382044, 387093,
+              392142, 522550, 524359, 653742}},
+        {18, {520169, 521170, 521515, 521860, 522205, 526168}},
+        {19, {258500, 265109, 270143, 274205, 277479, 401768, 421457, 430250,
+              435219, 449160, 454405, 461374, 494483, 505748, 527321, 528722,
+              529499}},
+        };
+        QHash<int, int> h;
+        for (const auto &p : t)
+            for (int o : p.second) h.insert(o, p.first);
+        return h;
+    }();
+    if (porOffset.contains(offset))
+        return QString("pal:GFX03.DAT:%1").arg(porOffset.value(offset) * 51);
+    // camisetas de plantilla (el juego las colorea): paleta propia 0 de GFX05
+    if (offset == 584119 || offset == 595776 || offset == 607433)
+        return "pal:GFX05.DAT:464324";
+    // campo grande: no sale en el código; la paleta 15 de GFX03 es la única
+    // con césped normal (elegida a ojo, sin verificar en el juego)
+    if (offset == 620769)
+        return QString("pal:GFX03.DAT:%1").arg(15 * 51);
+    return QString();
+}
+
+// "pal:FICHERO:offset" -> los 16 colores del registro de paleta de ese fichero
+static QVector<QRgb> paletaDeFichero(const QString &carpetaJuego, const QString &etiqueta)
+{
+    const QStringList partes = etiqueta.split(':');
+    if (partes.size() != 3) return QVector<QRgb>();
+    const int off = partes.at(2).toInt();
+    for (const QString &f : QDir(carpetaJuego).entryList(QDir::Files)) {
+        if (f.compare(partes.at(1), Qt::CaseInsensitive) != 0) continue;
+        QFile fi(QDir(carpetaJuego).absoluteFilePath(f));
+        if (!fi.open(QIODevice::ReadOnly) || !fi.seek(off)) break;
+        const QByteArray d = fi.read(50);
+        if (d.size() < 50 || quint8(d.at(0)) != 0x00 || quint8(d.at(1)) != 0x10) break;
+        QVector<QRgb> pal;
+        for (int i = 0; i < 16; i++)
+            pal.append(qRgb(quint8(d.at(2 + 3 * i)), quint8(d.at(3 + 3 * i)), quint8(d.at(4 + 3 * i))));
+        return pal;
+    }
+    return QVector<QRgb>();
+}
+
 QVector<QRgb> PCFutbolImagenes::paletaPorEtiqueta(const QString &etiqueta, const QByteArray &data,
                                                  const QString &carpetaJuego)
 {
+    if (etiqueta.startsWith("pal:")) {
+        const QVector<QRgb> p = paletaDeFichero(carpetaJuego, etiqueta);
+        if (p.size() == 16) return p;
+        return paletaMinifoto();
+    }
     if (etiqueta.startsWith("equipo:"))
         return paletaEquipo(carpetaJuego, etiqueta.mid(7));
     return paletaPorEtiqueta(etiqueta, data);
@@ -789,6 +865,13 @@ PCFutbolImagenes::ResultadoExportacion PCFutbolImagenes::exportarImagenes(
             auto parPaleta = idEquipo.isEmpty()
                 ? obtenerPaletaFamiliaA(nombreFichero, im.offset, data)
                 : qMakePair(paletaEquipo(carpetaJuego, idEquipo), "equipo:" + idEquipo);
+            if (nombreFichero.compare("GFX05.DAT", Qt::CaseInsensitive) == 0) {
+                const QString et = etiquetaGFX05(im.offset, data.size());
+                if (!et.isEmpty()) {
+                    const QVector<QRgb> p = paletaPorEtiqueta(et, data, carpetaJuego);
+                    if (p.size() == 16) parPaleta = qMakePair(p, et);
+                }
+            }
             QImage img = decodeFamiliaA(data, im.offset, im.ancho, im.alto, parPaleta.first);
             QString nombrePng = multiple
                 ? QString("%1_%2.png").arg(stem).arg(idx, 4, 10, QChar('0'))

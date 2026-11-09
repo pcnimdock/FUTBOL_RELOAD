@@ -122,6 +122,8 @@ public:
     static QVector<QRgb> paletaPorEtiqueta(const QString &etiqueta, const QByteArray &data,
                                            const QString &carpetaJuego);
     static QVector<QRgb> paletaEquipo(const QString &carpetaJuego, const QString &id);
+    // Paleta de cada imagen de GFX05 ("pal:FICHERO:offset") o vacío si no se sabe
+    static QString etiquetaGFX05(int offset, int tamFichero);
 
 private:
     static QByteArray leerFichero(const QString &ruta, bool *ok = nullptr);

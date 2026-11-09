@@ -242,3 +242,31 @@ Al exportar, algunas imágenes no salían con los colores del juego:
   volver a exportarlo sale igual que la imagen editada.
 - GFX01, GFX02, GFX03 y GFX05, INFOGRAF, MINIENTR, MINIFOTO, MINIESC, BIG*
   y ESCUDOS se revisaron a ojo y salían bien.
+
+### GFX05 (10/11/2026)
+
+- Lo usan PCMANAG y PROMANAG. Es idéntico en la 4.0 y la 4.5.
+- Sus 6 paletas propias están en mitad del fichero (464324…484118), no
+  empiezan en negro y son plantillas para colorear camisetas. Por eso el
+  editor no las encontraba y lo pintaba todo con la paleta de las minifotos:
+  trofeos con manchas naranjas y el campo grande con ruido azul y naranja.
+- Las pantallas no usan paletas de GFX05. PCMANAG toma la paleta de pantalla
+  de **GFX03** (`call 0x58090(búfer bf4d8, n*51)`) y PROMANAG de **GFX04**
+  (`call 0x56220(b30f8, n*51)`). Las dos tablas son iguales salvo la 5 y la
+  19/20, y los dos ejecutables dan la misma paleta para cada imagen.
+- Resultado (tabla `etiquetaGFX05`):
+  - 127 imágenes con la paleta que fija su pantalla, sacada del código
+    (`pal:GFX03.DAT:<n*51>`): trofeos (19), bombos del sorteo (17),
+    logotipos, gráficas…;
+  - 3 camisetas de plantilla con la paleta propia 0 de GFX05
+    (`pal:GFX05.DAT:464324`);
+  - el campo grande (620769) con la paleta 15 de GFX03, la única con césped
+    normal. **Elegida a ojo**: no sale en el código;
+  - las otras 157, que el código no resuelve, siguen con la paleta de
+    siempre. Son sobre todo botones grises, que ya se veían bien. Usar la
+    paleta de la imagen vecina las empeoraba.
+- **Comprobado:** importar sin tocar deja el juego idéntico; editar un
+  trofeo e importarlo cambia solo GFX05, y al volver a exportarlo sale
+  igual que lo editado.
+- **No comprobado dentro del juego** (sorteo de Copa, palmarés de
+  competiciones europeas).
