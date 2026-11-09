@@ -534,10 +534,57 @@ QPair<QVector<QRgb>, QString> PCFutbolImagenes::obtenerPaletaFamiliaA(const QStr
                 offset >= 380000 && offset <= 530000 && paletas.size() > 8) {
                 idx = 8;
             }
+            // GFX04 (solo lo usa PROMANAG.DAT). Sacado del código del juego:
+            // cada pantalla fija su paleta con call 0x56220(fichero, n*51) y
+            // se ha seguido qué pantalla dibuja cada imagen (9/11/2026).
+            // Igual en 4.0 y 4.5 (el fichero es idéntico).
+            if (nombreFichero.compare("GFX04.DAT", Qt::CaseInsensitive) == 0 &&
+                data.size() == 244815 && paletas.size() >= 10) {
+                static const QSet<int> paleta5 = {   // estadio y sus obras
+                    16802, 38411, 60020, 81629, 103238, 124847, 146456, 168065, 189674,
+                    211283, 215388, 219493, 220802, 222111, 223760, 225409, 225646,
+                    225883, 226144, 226405};
+                if (offset == 1224) idx = 6;                         // trofeo grande
+                else if (paleta5.contains(offset)) idx = 5;
+                else if (offset >= 240333 && offset <= 244566) idx = 9;   // mini-campos
+            }
             return {paletas.at(idx), QString("gfx:%1").arg(idx)};
         }
     }
     return obtenerPaletaFamiliaA(nombreFichero, offset);
+}
+
+// Dibujos de la ficha del equipo (CAMISAS, CINTAUP, CINTADW): no llevan
+// paleta; la ficha usa la de la foto del estadio (BIGCAMP/ES<id>.DFG) o, si
+// no hay, la del escudo grande (BIGESC/EQ<id>.DFG). Verificado en el juego.
+QVector<QRgb> PCFutbolImagenes::paletaEquipo(const QString &carpetaJuego, const QString &id)
+{
+    for (const auto &par : {qMakePair(QString("BIGCAMP"), QString("ES")), qMakePair(QString("BIGESC"), QString("EQ"))}) {
+        QDir dbdat(carpetaJuego + "/DBDAT");
+        for (const QString &sub : dbdat.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+            if (sub.compare(par.first, Qt::CaseInsensitive) != 0) continue;
+            QDir dir(dbdat.absoluteFilePath(sub));
+            for (const QString &f : dir.entryList(QDir::Files)) {
+                if (f.compare(par.second + id + ".DFG", Qt::CaseInsensitive) != 0) continue;
+                bool ok = false;
+                const QByteArray d = leerFichero(dir.absoluteFilePath(f), &ok);
+                if (!ok || d.size() < 50 || quint8(d.at(0)) != 0x00 || quint8(d.at(1)) != 0x10) continue;
+                QVector<QRgb> pal;
+                for (int i = 0; i < 16; i++)
+                    pal.append(qRgb(quint8(d.at(2 + 3 * i)), quint8(d.at(3 + 3 * i)), quint8(d.at(4 + 3 * i))));
+                return pal;
+            }
+        }
+    }
+    return paletaMinifoto();
+}
+
+QVector<QRgb> PCFutbolImagenes::paletaPorEtiqueta(const QString &etiqueta, const QByteArray &data,
+                                                 const QString &carpetaJuego)
+{
+    if (etiqueta.startsWith("equipo:"))
+        return paletaEquipo(carpetaJuego, etiqueta.mid(7));
+    return paletaPorEtiqueta(etiqueta, data);
 }
 
 QVector<QRgb> PCFutbolImagenes::paletaPorEtiqueta(const QString &etiqueta, const QByteArray &data)
@@ -721,6 +768,16 @@ PCFutbolImagenes::ResultadoExportacion PCFutbolImagenes::exportarImagenes(
         }
         if (procesadoMixto) continue;
 
+        // GRAFICOS/*.EMP son las animaciones del partido (otro formato, de
+        // 256 colores): el escáner de la familia A sólo encontraba basura.
+        if (up.startsWith("GRAFICOS/")) continue;
+
+        // Dibujos de la ficha del equipo: paleta del propio equipo
+        QString idEquipo;
+        if ((up.contains("/CAMISAS/") || up.contains("/CINTAUP/") || up.contains("/CINTADW/")) &&
+            stem.size() == 8 && stem.startsWith("EQ", Qt::CaseInsensitive))
+            idEquipo = stem.mid(2);
+
         // Familia A general: escanear el fichero entero
         QVector<ImagenEncontrada> imagenes = buscarImagenesFamiliaA(data);
         if (imagenes.isEmpty()) continue;
@@ -729,7 +786,9 @@ PCFutbolImagenes::ResultadoExportacion PCFutbolImagenes::exportarImagenes(
         bool multiple = imagenes.size() > 1;
         for (int idx = 0; idx < imagenes.size(); idx++) {
             const ImagenEncontrada &im = imagenes[idx];
-            auto parPaleta = obtenerPaletaFamiliaA(nombreFichero, im.offset, data);
+            auto parPaleta = idEquipo.isEmpty()
+                ? obtenerPaletaFamiliaA(nombreFichero, im.offset, data)
+                : qMakePair(paletaEquipo(carpetaJuego, idEquipo), "equipo:" + idEquipo);
             QImage img = decodeFamiliaA(data, im.offset, im.ancho, im.alto, parPaleta.first);
             QString nombrePng = multiple
                 ? QString("%1_%2.png").arg(stem).arg(idx, 4, 10, QChar('0'))
@@ -915,7 +974,7 @@ PCFutbolImagenes::ResultadoImportacion PCFutbolImagenes::importarImagenes(
             QString pngPath = carpetaImagenes + "/" + fila.rutaPng;
             if (!QFile::exists(pngPath)) continue;
 
-            QVector<QRgb> pal = paletaPorEtiqueta(fila.paleta, data);
+            QVector<QRgb> pal = paletaPorEtiqueta(fila.paleta, data, carpetaOriginal);
             QImage original = decodeFamiliaA(data, fila.offset, fila.ancho, fila.alto, pal)
                                    .convertToFormat(QImage::Format_RGB32);
             QImage nuevo = QImage(pngPath).convertToFormat(QImage::Format_RGB32)

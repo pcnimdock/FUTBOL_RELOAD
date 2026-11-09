@@ -212,3 +212,33 @@ En `~/pcfutbol_trabajo/test3/`:
 **Cuidado:** los modos `dialogos` y `escudos`, con el código antiguo,
 generaron gigas de avisos de Qt y llenaron el disco. Hay que pasar siempre
 la salida por `grep` o `head`, nunca a un fichero.
+
+## Exportar imágenes: paletas corregidas (9/11/2026)
+
+Al exportar, algunas imágenes no salían con los colores del juego:
+
+- **CAMISAS, CINTAUP y CINTADW** (dibujo del kit y cintas de la ficha) se
+  pintaban con la paleta de las minifotos. Así, los tres colores propios de
+  cada equipo (1, 2 y 8) eran los mismos para todos; por ejemplo, el
+  Valladolid salía verde. Ahora usan la paleta del equipo: foto del estadio
+  `BIGCAMP/ES<id>.DFG` o, si no hay, escudo grande `BIGESC/EQ<id>.DFG`. En
+  el manifest va `equipo:<id>`, y el importador usa la misma.
+- **GFX04** (solo lo usa PROMANAG) iba entero con la paleta 0. Del código
+  de PROMANAG se ha sacado qué paleta pone cada pantalla
+  (`call 0x56220(fichero, n*51)`) y qué imágenes dibuja:
+  - trofeo grande (offset 1224): paleta 6;
+  - 20 imágenes del estadio y sus obras (offsets en la tabla `0x96818`):
+    paleta 5;
+  - 18 mini-campos (240333–244566): paleta 9;
+  - el resto: paleta 0.
+  GFX04 es idéntico en 4.0 y 4.5.
+- **GRAFICOS/*.EMP** son las animaciones del partido (otro formato). El
+  escáner sacaba 9 «imágenes» que eran basura; ya no se exportan.
+
+**Comprobado:**
+
+- Importar las imágenes sin tocar deja la copia del juego idéntica.
+- Editar un dibujo de CAMISAS e importarlo cambia solo ese fichero, y al
+  volver a exportarlo sale igual que la imagen editada.
+- GFX01, GFX02, GFX03 y GFX05, INFOGRAF, MINIENTR, MINIFOTO, MINIESC, BIG*
+  y ESCUDOS se revisaron a ojo y salían bien.

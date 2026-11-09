@@ -118,6 +118,10 @@ public:
     static QPair<QVector<QRgb>, QString> obtenerPaletaFamiliaA(const QString &nombreFichero, int offset,
                                                                const QByteArray &data);
     static QVector<QRgb> paletaPorEtiqueta(const QString &etiqueta, const QByteArray &data);
+    // Con "equipo:<id>" (CAMISAS y cintas) hace falta la carpeta del juego
+    static QVector<QRgb> paletaPorEtiqueta(const QString &etiqueta, const QByteArray &data,
+                                           const QString &carpetaJuego);
+    static QVector<QRgb> paletaEquipo(const QString &carpetaJuego, const QString &id);
 
 private:
     static QByteArray leerFichero(const QString &ruta, bool *ok = nullptr);
