@@ -144,6 +144,9 @@ IDs de equipo (el número de `EQ95xxxx.DBC`) en u32 little-endian:
   arranca con el Mallorca en Primera y el Real Madrid en Segunda (puesto 10).
 - Los clasificados para Europa salen de otra tabla: el Madrid, aun en Segunda,
   sigue jugando la Copa de Europa.
+- Un equipo **sin ficha completa** en Primera también funciona: con el Levante
+  (de Segunda B) en lugar del Albacete, la Liga Manager arranca, su despacho
+  se abre y sus partidos se juegan en el simulador, con su equipación.
 - **Parchear también `PCFUTBOL.DAT` rompe el juego**: al entrar en el
   amistoso sale `RetEquipPtr: ERROR: Equipo no encontrado [4]`. `PCFUTBOL.DAT`
   lee el calendario real de la temporada 95/96 de `JORNAD1.DBC` (Primera) y

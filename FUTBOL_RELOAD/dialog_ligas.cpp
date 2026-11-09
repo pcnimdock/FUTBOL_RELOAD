@@ -158,8 +158,10 @@ void DialogLigas::rellenar()
         }
     }
     if (!avisos.isEmpty())
-        avisos.prepend("Avisos (no se ha probado todavía dentro del juego con equipos sin ficha "
-                       "completa en Primera o Segunda: prueba una partida nueva antes de jugar en serio):");
+        avisos.prepend("Avisos (probado en el juego: un equipo sin ficha completa, el Levante, "
+                       "arranca la Liga Manager en Primera, su despacho se abre y sus partidos se "
+                       "juegan; sólo le faltan los datos de club. Aun así, prueba una partida "
+                       "nueva antes de jugar en serio):");
     m_lblAvisos->setText(avisos.join("\n· "));
     m_btnGuardar->setText(m_ligas.modificada() ? "Guardar en el juego *" : "Guardar en el juego");
     m_elegidos.clear();
