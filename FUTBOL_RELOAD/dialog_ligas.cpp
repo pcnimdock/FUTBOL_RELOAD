@@ -31,7 +31,9 @@ DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog
         "Se modifican PCMANAG.DAT y PROMANAG.DAT (con copia .bak): afecta a las ligas "
         "(Arcade, Entrenador, Manager, Promanager) y al amistoso, sólo en partidas NUEVAS. "
         "La base de datos y el seguimiento de la liga real 95/96 (PCFUTBOL.DAT) no "
-        "cambian: van ligados al calendario real y el juego falla si se tocan.", this);
+        "cambian: van ligados al calendario real y el juego falla si se tocan.\n"
+        "La Copa del Rey la juegan todos los equipos de las tres listas (los 97 españoles), "
+        "así que no hace falta tocar nada para ella.", this);
     lblAyuda->setWordWrap(true);
 
     const char *titulos[3] = {"Primera División (22)", "Segunda División (20)", "Segunda B"};

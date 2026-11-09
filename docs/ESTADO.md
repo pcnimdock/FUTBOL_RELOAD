@@ -25,6 +25,7 @@ Ampliar el editor FUTBOL_RELOAD para PC Fútbol 4.5 y poder:
 | Cambiar **cuántos equipos** hay en la liga | ⛔ Descartado por el usuario (9/11/2026): sería rehacer medio juego |
 | Dibujo del kit de la ficha del equipo (`CAMISAS/*.DFG`) | ✅ Hecho y probado en el juego (paleta = foto del estadio o escudo) |
 | Clasificados para Europa (1ª temporada) | ✅ Hecho y probado en el juego |
+| Participantes de la Copa del Rey | ✅ No hace falta: la juegan todos los equipos de la lista de ligas (visto en el código) |
 
 ---
 

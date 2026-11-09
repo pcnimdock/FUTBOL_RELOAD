@@ -195,6 +195,21 @@ IDs de equipo (el número de `EQ95xxxx.DBC`) en u32 little-endian:
   (memoria): 11 pares de Primera y 10 de Segunda, índices de puesto. El resto
   del calendario se genera rotando.
 
+### Copa del Rey: no tiene lista propia (visto en el código)
+
+Al empezar una partida, `PCMANAG` (función en `0x1AF5C`) recorre **toda la
+lista larga** (`0xA22DC`, hasta el `0xFFFF`) e inscribe a cada equipo en la
+competición **9**, que es la que comprueba el sorteo de la Copa del Rey
+(`0x1CB7C`, junto al texto «SORTEO DE LA COPA DEL REY»). Es decir, la Copa
+la juegan **todos los equipos de Primera, Segunda y Segunda B**: los 97
+españoles con `EQ95xxxx.DBC` (la lista tiene 99 puestos porque Ávila y
+Manchego van dos veces). Empieza tras la jornada 8.
+
+Consecuencias: intercambiar equipos entre divisiones no saca a nadie de la
+Copa, y no hay nada aparte que editar. No se puede añadir ni quitar equipos
+de la Copa (no hay más equipos españoles y la lista es de tamaño fijo).
+Sin comprobar todavía jugando hasta la jornada 8.
+
 ### Clasificados para Europa (verificado en el juego)
 
 Tabla de u32 en `PCMANAG.DAT` (`0xA21AC` en memoria, `0xA7FAC` en el fichero
