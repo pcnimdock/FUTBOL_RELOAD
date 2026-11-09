@@ -193,6 +193,80 @@ QByteArray PCFutbolEquipacion::cierreFijo()
     return c;
 }
 
+QRgb PCFutbolEquipacion::colorRepresentativo(const QByteArray &bloque190)
+{
+    if (bloque190.size() != TAM_BLOQUE) return qRgb(0, 0, 0);
+    return qRgb(static_cast<quint8>(bloque190.at(POS_COLOR_REP_RGB)),
+                static_cast<quint8>(bloque190.at(POS_COLOR_REP_RGB + 1)),
+                static_cast<quint8>(bloque190.at(POS_COLOR_REP_RGB + 2)));
+}
+
+void PCFutbolEquipacion::setColorRepresentativo(QByteArray &bloque190, quint8 idxPaleta)
+{
+    if (bloque190.size() != TAM_BLOQUE) return;
+    bloque190[POS_COLOR_REP_IDX]     = static_cast<char>(idxPaleta);
+    bloque190[POS_COLOR_REP_RGB]     = static_cast<char>(paleta_kits[idxPaleta][0]);
+    bloque190[POS_COLOR_REP_RGB + 1] = static_cast<char>(paleta_kits[idxPaleta][1]);
+    bloque190[POS_COLOR_REP_RGB + 2] = static_cast<char>(paleta_kits[idxPaleta][2]);
+}
+
+bool PCFutbolEquipacion::escribirColorRepresentativo(const QString &equiposDatPath, int n,
+                                                     bool primera, quint8 idxPaleta)
+{
+    bool ok = false;
+    QByteArray b = leerBloqueEquipacion(equiposDatPath, n, primera, &ok);
+    if (!ok) return false;
+    setColorRepresentativo(b, idxPaleta);
+    return escribirBloqueEquipacion(equiposDatPath, n, primera, b);
+}
+
+quint8 PCFutbolEquipacion::colorDominanteCamiseta(const QByteArray &textura168)
+{
+    int cuenta[256] = {0};
+    for (int p = 3 * ANCHO; p < qMin(int(textura168.size()), int(TAM_TEXTURA)); p++)
+    {
+        if (esPosicionCamiseta(p)) cuenta[static_cast<quint8>(textura168.at(p))]++;
+    }
+    int mejor = 0;
+    for (int i = 1; i < 256; i++)
+    {
+        if (cuenta[i] > cuenta[mejor]) mejor = i;
+    }
+    return static_cast<quint8>(mejor);
+}
+
+void PCFutbolEquipacion::rgbAHslJuego(int r, int g, int b, int *h, int *l, int *s)
+{
+    // Réplica de la función 0x74F3C de PCMANAG.DAT
+    const int mn = qMin(r, qMin(g, b));
+    const int mx = qMax(r, qMax(g, b));
+    const int suma = mx + mn;
+    const int delta = mx - mn;
+    *l = (suma * 100) >> 9;
+    if (delta == 0) { *s = 0; *h = 0; return; }
+    *s = (*l < 50) ? (delta * 100) / suma : (delta * 100) / (510 - suma);
+    int hh;
+    if (mx == r)      hh = ((g - b) * 60) / delta;
+    else if (mx == g) hh = ((b - r) * 60) / delta + 120;
+    else              hh = ((r - g) * 60) / delta + 240;
+    if (hh < 0) hh += 360;
+    *h = hh;
+}
+
+int PCFutbolEquipacion::distanciaChoque(QRgb a, QRgb b)
+{
+    int h1, l1, s1, h2, l2, s2;
+    rgbAHslJuego(qRed(a), qGreen(a), qBlue(a), &h1, &l1, &s1);
+    rgbAHslJuego(qRed(b), qGreen(b), qBlue(b), &h2, &l2, &s2);
+    int d = qAbs(h1 - h2);
+    if (d > 180) d = 360 - d;
+    const bool gris1 = (h1 == 0 && s1 == 0);
+    const bool gris2 = (h2 == 0 && s2 == 0);
+    if (gris1 != gris2) d = 200;      // uno sin tono y otro con tono: no chocan
+    if (gris1 && gris2) d = 0;        // dos sin tono: siempre chocan
+    return d;
+}
+
 QByteArray PCFutbolEquipacion::bloqueDesdeTextura(const QByteArray &textura168)
 {
     QByteArray t = textura168;

@@ -35,7 +35,17 @@
  *    - bloque[7]    = 0x3E (">")             -> sombra del jugador en el césped
  *    - bloque[8..175] = la "textura": posición p de la textura = índice p+8
  *    - bloque[176..189] = índices altos, apenas usados por los sprites; los
- *      bytes 187..189 llevan además un color RGB propio de cada kit.
+ *      bytes 185 y 187..189 son el COLOR REPRESENTATIVO del kit (índice de
+ *      paleta y su RGB), que el juego usa para detectar choques de color.
+ *
+ * CHOQUES DE COLOR (verificado en el juego, DOSBox, Valencia-Madrid):
+ *  PCMANAG.DAT y PROMANAG.DAT (función en 0x74F3C de PCMANAG) cargan la 1ª
+ *  equipación de los dos equipos, pasan el RGB de 187..189 a HSL y, si los
+ *  tonos distan menos de 60 grados, el visitante (salvo un indicador
+ *  interno) carga su 2ª equipación. Blanco/gris/negro (H=0, S=0) no chocan
+ *  con colores con tono, pero sí entre sí. NO se vuelve a comprobar con la
+ *  2ª, y no existen terceras equipaciones. Lo que decide es este color, no
+ *  la camiseta pintada: si se repinta la camiseta hay que actualizarlo.
  *  Zonas del jugador (posiciones de textura), comprobadas pintando cada zona
  *  de un color en CORRER/CHUT/ENTRADA/CABCHI.EMP:
  *    - BOTAS    : 7, 22, 23   (0x60/0x70/0x73 en los 470 kits: botas negras)
@@ -49,6 +59,7 @@
 #include <QString>
 #include <QByteArray>
 #include <QImage>
+#include <QColor>
 #include <QVector>
 #include <QList>
 
@@ -145,6 +156,23 @@ public:
     // la cabecera ni los 14 bytes finales, que varían por equipo.
     static bool escribirTexturaEquipacion(const QString &equiposDatPath, int n, bool primera,
                                           const QByteArray &textura168);
+
+    // --- Color representativo y choques de color -----------------------------
+    static const int POS_COLOR_REP_IDX = 185;
+    static const int POS_COLOR_REP_RGB = 187;
+    static QRgb colorRepresentativo(const QByteArray &bloque190);
+    // Escribe índice + RGB (de paleta_kits) en los bytes 185 y 187-189
+    static void setColorRepresentativo(QByteArray &bloque190, quint8 idxPaleta);
+    // Escribe sólo esos 4 bytes en EQUIPOS.DAT
+    static bool escribirColorRepresentativo(const QString &equiposDatPath, int n, bool primera,
+                                            quint8 idxPaleta);
+    // Color más frecuente del torso (posiciones de camiseta de las filas 3-6)
+    static quint8 colorDominanteCamiseta(const QByteArray &textura168);
+    // RGB -> HSL entero exactamente como el juego (H 0-359, L y S en %)
+    static void rgbAHslJuego(int r, int g, int b, int *h, int *l, int *s);
+    // Distancia que calcula el juego: tono 0-180, 200 = nunca chocan, 0 = ambos sin color
+    static int distanciaChoque(QRgb a, QRgb b);
+    static bool chocan(QRgb a, QRgb b) { return distanciaChoque(a, b) < 60; }
 
     // --- Vista previa --------------------------------------------------------
     // Dibuja el sprite real de 20x20 ampliado x escala (nearest-neighbor).

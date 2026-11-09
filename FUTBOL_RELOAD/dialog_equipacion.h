@@ -137,6 +137,9 @@ private slots:
     void onTexturaCambiada();
     void onPixelSobrevolado(int sx, int sy, int pos);
     void onColorElegido(int idxPaleta);
+    void calcularColorRepresentativo();   // desde el color dominante de la camiseta
+    void usarColorPaletaRepresentativo(); // el color seleccionado en la paleta
+    void comprobarChoques();              // regla de choques del juego contra todos
 
 private:
     void empujarUndo();
@@ -144,6 +147,9 @@ private:
     QString nombreZona(int posTextura) const;
     void cargarSpritesPartido();
     QImage vistaPartido(int escala) const;
+    QRgb colorRepActual(int i) const;     // el que usará el juego al guardar
+    void actualizarColorRepresentativo();
+    QStringList ficherosEquiposOrdenados() const; // EQ*.DBC en el orden de EQUIPOS.DAT
 
     QByteArray m_tex[2];      // 0 = 1ª equipación, 1 = 2ª
     QByteArray m_texOrig[2];
@@ -177,6 +183,11 @@ private:
     QCheckBox *m_chkPaletaCompleta;
     QCheckBox *m_chkDegradado;
     QLabel    *m_lblJugador = nullptr;
+
+    // Color representativo (bytes 185 y 187-189): decide los choques de
+    // color en el partido. -1 = sin cambios respecto al fichero.
+    int m_rep[2] = { -1, -1 };
+    QLabel *m_lblColorRep = nullptr;
 };
 
 #endif // DIALOG_EQUIPACION_H

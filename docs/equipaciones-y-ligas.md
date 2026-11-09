@@ -61,6 +61,36 @@ color en varios sprites:
 - Las paletas `PALETAS/PALETA.BBM` y `GRAFICOS/PALETA.BBM` sólo difieren en
   `0x99..0x9D`: azul marino en el icono, **morado en el partido**.
 
+### Choques de color: cuándo se usa la 2ª equipación (verificado en el juego)
+
+Los bytes **185** (índice de paleta) y **187–189** (su RGB, 0–255) son el
+**color representativo** del kit. `PCMANAG.DAT` (función en `0x74F3C` de la
+imagen cargada con base `0x10000`) y `PROMANAG.DAT` cargan la 1ª equipación
+de los dos equipos, pasan ese RGB a HSL y miden la distancia de **tono**:
+
+- menos de 60° → choque: el visitante (salvo un indicador interno que hace
+  cambiar al otro equipo) carga su **2ª equipación** (kit 2*i*+1);
+- un color sin tono (blanco, gris, negro: H = 0 y S = 0) no choca con uno
+  que sí lo tiene, pero **dos colores sin tono siempre chocan** (blanco
+  contra negro incluido); la luminosidad no cuenta;
+- **no se vuelve a comprobar** con la 2ª: si también choca, se juega así;
+- **no existen terceras equipaciones** (2 kits por equipo en `EQUIPOS.DAT`).
+
+Lo que decide es ese color, no la camiseta pintada. Comprobado en DOSBox:
+Valencia–Madrid (los dos blancos) → el Madrid sale con la 2ª, morada; con el
+color representativo del Madrid cambiado a rojo y la camiseta igual, los dos
+juegan de blanco.
+
+El kit de cada equipo se busca en una tabla de 235 números de equipo dentro
+del ejecutable (`0xAE980` en `PCMANAG.DAT`, `0xA318C` en `PROMANAG.DAT`, en la
+imagen cargada); en la 4.5 coincide con los `EQ*.DBC` ordenados.
+
+En el editor, apartado **«Color para detectar choques»**: muestra el color,
+avisa si ya no se parece a la camiseta, lo calcula desde la camiseta o lo
+toma de la paleta, y «Aplicar patrón» lo recalcula solo. **«Comprobar
+choques…»** aplica la regla del juego contra todos los equipos y marca los
+partidos en los que la 2ª equipación tampoco evita el choque.
+
 ### Errores corregidos en el editor
 
 - "Aplicar patrón" rellenaba las 168 posiciones: pantalón, medias, botas y

@@ -23,6 +23,11 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QMap>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QRegularExpression>
+#include <algorithm>
+#include "bbdd_futbol.h"
 
 static inline QColor colorPaleta(int idx)
 {
@@ -497,10 +502,33 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     lz->addWidget(m_chkDegradado);
     lz->addWidget(btnZona);
 
+    // --- Color para detectar choques ----------------------------------------
+    m_lblColorRep = new QLabel(this);
+    m_lblColorRep->setWordWrap(true);
+    QPushButton *btnRepCalc = new QPushButton("Calcular desde la camiseta", this);
+    QPushButton *btnRepPal = new QPushButton("Usar color de la paleta", this);
+    QPushButton *btnChoques = new QPushButton("Comprobar choques con otros equipos…", this);
+    btnRepCalc->setToolTip("Toma el color más frecuente del torso de la camiseta.");
+    QGroupBox *gbChoque = new QGroupBox("Color para detectar choques", this);
+    gbChoque->setToolTip("El juego compara este color de la 1ª equipación de los dos equipos:\n"
+                         "si sus tonos distan menos de 60°, el visitante juega con la 2ª.\n"
+                         "Blanco, gris y negro sólo chocan entre sí. No hay 3ª equipación.");
+    QVBoxLayout *lc = new QVBoxLayout(gbChoque);
+    lc->addWidget(m_lblColorRep);
+    QHBoxLayout *filaRep = new QHBoxLayout();
+    filaRep->addWidget(btnRepCalc);
+    filaRep->addWidget(btnRepPal);
+    lc->addLayout(filaRep);
+    lc->addWidget(btnChoques);
+    connect(btnRepCalc, &QPushButton::clicked, this, &DialogEquipacion::calcularColorRepresentativo);
+    connect(btnRepPal, &QPushButton::clicked, this, &DialogEquipacion::usarColorPaletaRepresentativo);
+    connect(btnChoques, &QPushButton::clicked, this, &DialogEquipacion::comprobarChoques);
+
     QVBoxLayout *colDer = new QVBoxLayout();
     colDer->addWidget(gbPaleta);
     colDer->addWidget(gbPatron);
     colDer->addWidget(gbZona);
+    colDer->addWidget(gbChoque);
     colDer->addStretch();
 
     QHBoxLayout *cols = new QHBoxLayout();
@@ -616,6 +644,7 @@ void DialogEquipacion::refrescar()
         else
             m_lblJugador->setPixmap(QPixmap::fromImage(im));
     }
+    actualizarColorRepresentativo();
 }
 
 // --- Vista del jugador en el partido --------------------------------------
@@ -795,6 +824,8 @@ void DialogEquipacion::aplicarPatron()
                                                                    colores.at(ia), colores.at(ib),
                                                                    m_spAncho->value(), true);
     PCFutbolEquipacion::copiarSoloCamiseta(m_tex[m_actual], generada);
+    // Camiseta nueva: el color que usa el juego para los choques debe seguirla
+    m_rep[m_actual] = PCFutbolEquipacion::colorDominanteCamiseta(m_tex[m_actual]);
     refrescar();
 }
 
@@ -890,6 +921,7 @@ void DialogEquipacion::leerDelFichero()
             m_texOrig[i] = m_tex[i];
             m_bloqueOrig[i] = bloque;
             m_undo[i].clear();
+            m_rep[i] = -1;
             alguna = true;
         }
     }
@@ -947,6 +979,20 @@ void DialogEquipacion::guardarEnDisco()
         {
             ok = false;
         }
+        // Color representativo (bytes 185 y 187-189) si se ha cambiado
+        if (m_rep[i] >= 0)
+        {
+            if (PCFutbolEquipacion::escribirColorRepresentativo(le_ruta->text(), sp_numero->value(),
+                                                                (i == 0), static_cast<quint8>(m_rep[i])))
+            {
+                PCFutbolEquipacion::setColorRepresentativo(m_bloqueOrig[i], static_cast<quint8>(m_rep[i]));
+                m_rep[i] = -1;
+            }
+            else
+            {
+                ok = false;
+            }
+        }
     }
 
     if (ok)
@@ -967,4 +1013,205 @@ void DialogEquipacion::guardarEnDisco()
                               "Revisa la ruta y el número de equipo.\n"
                               "Tienes la copia de seguridad en:\n" + rutaBak);
     }
+}
+
+// --- Color representativo y choques de color --------------------------------
+QRgb DialogEquipacion::colorRepActual(int i) const
+{
+    if (m_rep[i] >= 0)
+    {
+        return colorPaleta(m_rep[i]).rgb();
+    }
+    if (m_bloqueOrig[i].size() == PCFutbolEquipacion::TAM_BLOQUE)
+    {
+        return PCFutbolEquipacion::colorRepresentativo(m_bloqueOrig[i]);
+    }
+    bool ok = false;
+    const QByteArray b = PCFutbolEquipacion::leerBloqueEquipacion(le_ruta->text(),
+                                                                  sp_numero->value(), i == 0, &ok);
+    return ok ? PCFutbolEquipacion::colorRepresentativo(b) : qRgb(0, 0, 0);
+}
+
+void DialogEquipacion::actualizarColorRepresentativo()
+{
+    if (!m_lblColorRep) return;
+    if (le_ruta->text().isEmpty())
+    {
+        m_lblColorRep->setText("(indica la ruta de EQUIPOS.DAT)");
+        return;
+    }
+    const QRgb rep = colorRepActual(m_actual);
+    int h, l, s;
+    PCFutbolEquipacion::rgbAHslJuego(qRed(rep), qGreen(rep), qBlue(rep), &h, &l, &s);
+    QString texto = QString("<span style='background:%1'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>"
+                            "&nbsp;RGB %2,%3,%4 · tono %5° · sat. %6%")
+                        .arg(QColor(rep).name()).arg(qRed(rep)).arg(qGreen(rep)).arg(qBlue(rep))
+                        .arg(h).arg(s);
+    if (m_rep[m_actual] >= 0)
+    {
+        texto += " <i>(cambiado, sin guardar)</i>";
+    }
+
+    // ¿Se parece a la camiseta? Se cuenta qué parte del torso "choca" con
+    // él; así una camiseta a rayas admite cualquiera de sus colores.
+    const QByteArray &t = m_tex[m_actual];
+    int total = 0, parecidos = 0;
+    for (int p = 3 * PCFutbolEquipacion::ANCHO; p < t.size(); p++)
+    {
+        if (!PCFutbolEquipacion::esPosicionCamiseta(p)) continue;
+        total++;
+        if (PCFutbolEquipacion::chocan(rep, colorPaleta(static_cast<quint8>(t.at(p))).rgb()))
+            parecidos++;
+    }
+    if (total > 0 && parecidos * 5 < total)
+    {
+        const QColor dom = colorPaleta(PCFutbolEquipacion::colorDominanteCamiseta(t));
+        texto += QString("<br><span style='color:#e0b34a'>⚠ No se parece a la camiseta "
+                         "(<span style='background:%1'>&nbsp;&nbsp;&nbsp;&nbsp;</span>): el juego "
+                         "decidiría los choques con un color que no es el real. Pulsa "
+                         "«Calcular desde la camiseta».</span>").arg(dom.name());
+    }
+    m_lblColorRep->setText(texto);
+}
+
+void DialogEquipacion::calcularColorRepresentativo()
+{
+    m_tex[m_actual] = m_lienzo->textura();
+    m_rep[m_actual] = PCFutbolEquipacion::colorDominanteCamiseta(m_tex[m_actual]);
+    refrescar();
+}
+
+void DialogEquipacion::usarColorPaletaRepresentativo()
+{
+    m_rep[m_actual] = m_paleta->colorSeleccionado();
+    refrescar();
+}
+
+QStringList DialogEquipacion::ficherosEquiposOrdenados() const
+{
+    // Mismo orden que la tabla interna de PCMANAG/PROMANAG (verificado):
+    // EQ*.DBC ordenados por ID, sin Estrellas Mundiales (EQ9599xx).
+    QDir dir = QFileInfo(le_ruta->text()).absoluteDir();
+    if (!dir.cdUp() || !dir.cd("DBDAT")) return QStringList();
+    const QRegularExpression re("^EQ(\\d{6})\\.DBC$", QRegularExpression::CaseInsensitiveOption);
+    QStringList lista;
+    for (const QString &f : dir.entryList(QDir::Files))
+    {
+        const QRegularExpressionMatch m = re.match(f);
+        if (m.hasMatch() && !m.captured(1).startsWith("9599"))
+            lista << dir.absoluteFilePath(f);
+    }
+    std::sort(lista.begin(), lista.end(), [](const QString &a, const QString &b) {
+        return QFileInfo(a).fileName().mid(2, 6).toInt() < QFileInfo(b).fileName().mid(2, 6).toInt();
+    });
+    return lista;
+}
+
+static QString nombreCortoEquipo(const QString &rutaDbc)
+{
+    QFile f(rutaDbc);
+    if (!f.open(QIODevice::ReadOnly)) return QFileInfo(rutaDbc).baseName();
+    const QByteArray d = f.read(0x200);
+    BBDD_FUTBOL db;
+    int pos = 0x2C;                                   // nombre largo, luego el corto
+    if (pos >= d.size()) return QFileInfo(rutaDbc).baseName();
+    pos += 1 + static_cast<quint8>(d.at(pos));
+    if (pos >= d.size()) return QFileInfo(rutaDbc).baseName();
+    const int len = static_cast<quint8>(d.at(pos++));
+    QString n;
+    for (int i = 0; i < len && pos < d.size(); i++)
+        n.append(db.descodificar_caracter(static_cast<quint8>(d.at(pos++))));
+    n = n.trimmed();
+    return n.isEmpty() ? QFileInfo(rutaDbc).baseName() : n;
+}
+
+void DialogEquipacion::comprobarChoques()
+{
+    m_tex[m_actual] = m_lienzo->textura();
+    QFile f(le_ruta->text());
+    if (!f.open(QIODevice::ReadOnly))
+    {
+        QMessageBox::warning(this, "Falta la ruta", "Indica primero la ruta a PALETAS/EQUIPOS.DAT.");
+        return;
+    }
+    const QByteArray todo = f.readAll();
+    f.close();
+    const int nEquipos = todo.size() / (2 * PCFutbolEquipacion::TAM_BLOQUE);
+    const int yo = sp_numero->value();
+    const QStringList dbc = ficherosEquiposOrdenados();
+    const QRgb mi1 = colorRepActual(0);
+    const QRgb mi2 = colorRepActual(1);
+
+    struct Fila { int n; QString nombre; QRgb r1, r2; bool malVisit, malLocal; };
+    QList<Fila> filas;
+    for (int n = 1; n <= nEquipos; n++)
+    {
+        if (n == yo) continue;
+        const QRgb r1 = PCFutbolEquipacion::colorRepresentativo(
+                    todo.mid(PCFutbolEquipacion::kitOffset(n, true), PCFutbolEquipacion::TAM_BLOQUE));
+        if (!PCFutbolEquipacion::chocan(mi1, r1)) continue;
+        Fila fl;
+        fl.n = n;
+        fl.r1 = r1;
+        fl.r2 = PCFutbolEquipacion::colorRepresentativo(
+                    todo.mid(PCFutbolEquipacion::kitOffset(n, false), PCFutbolEquipacion::TAM_BLOQUE));
+        fl.nombre = (n - 1 < dbc.size()) ? nombreCortoEquipo(dbc.at(n - 1)) : QString("Equipo %1").arg(n);
+        // Cambia el visitante: fuera usas tu 2ª; en casa el rival usa su 2ª
+        fl.malVisit = PCFutbolEquipacion::chocan(mi2, r1);
+        fl.malLocal = PCFutbolEquipacion::chocan(mi1, fl.r2);
+        filas.append(fl);
+    }
+    std::stable_sort(filas.begin(), filas.end(), [](const Fila &a, const Fila &b) {
+        return int(a.malVisit) + int(a.malLocal) > int(b.malVisit) + int(b.malLocal);
+    });
+    int malos = 0;
+    for (const Fila &fl : filas) if (fl.malVisit || fl.malLocal) malos++;
+
+    QDialog dlg(this);
+    dlg.setWindowTitle("Choques de color");
+    dlg.resize(760, 480);
+    QVBoxLayout *lay = new QVBoxLayout(&dlg);
+    QLabel *cab = new QLabel(QString(
+        "Equipos cuya 1ª equipación choca con la tuya según la regla del juego "
+        "(tono a menos de 60°; blanco, gris y negro chocan entre sí): <b>%1</b>.<br>"
+        "En esos partidos el visitante juega con su 2ª equipación y el juego <b>no vuelve a "
+        "comprobar</b> (no hay 3ª). Las filas con ✖ (%2) se jugarán con colores parecidos.")
+        .arg(filas.size()).arg(malos), &dlg);
+    cab->setWordWrap(true);
+    lay->addWidget(cab);
+
+    QTableWidget *t = new QTableWidget(filas.size(), 5, &dlg);
+    t->setHorizontalHeaderLabels({"n", "Rival", "Rival 1ª / 2ª", "Tú de visitante", "Tú de local"});
+    t->verticalHeader()->setVisible(false);
+    t->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    t->setIconSize(QSize(40, 16));
+    for (int i = 0; i < filas.size(); i++)
+    {
+        const Fila &fl = filas.at(i);
+        t->setItem(i, 0, new QTableWidgetItem(QString::number(fl.n)));
+        t->setItem(i, 1, new QTableWidgetItem(fl.nombre));
+        QPixmap pm(40, 16);
+        pm.fill(Qt::transparent);
+        QPainter p(&pm);
+        p.fillRect(0, 0, 18, 16, QColor(fl.r1));
+        p.fillRect(22, 0, 18, 16, QColor(fl.r2));
+        p.setPen(Qt::gray);
+        p.drawRect(0, 0, 17, 15);
+        p.drawRect(22, 0, 17, 15);
+        p.end();
+        t->setItem(i, 2, new QTableWidgetItem(QIcon(pm), ""));
+        QTableWidgetItem *iv = new QTableWidgetItem(fl.malVisit ? "✖ tu 2ª también choca" : "✔ usas tu 2ª");
+        QTableWidgetItem *il = new QTableWidgetItem(fl.malLocal ? "✖ su 2ª también choca" : "✔ el rival usa su 2ª");
+        if (fl.malVisit) iv->setForeground(QColor("#e05a4a"));
+        if (fl.malLocal) il->setForeground(QColor("#e05a4a"));
+        t->setItem(i, 3, iv);
+        t->setItem(i, 4, il);
+    }
+    t->resizeColumnsToContents();
+    t->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    lay->addWidget(t);
+    QPushButton *ok = new QPushButton("Cerrar", &dlg);
+    connect(ok, &QPushButton::clicked, &dlg, &QDialog::accept);
+    lay->addWidget(ok, 0, Qt::AlignRight);
+    dlg.exec();
 }
