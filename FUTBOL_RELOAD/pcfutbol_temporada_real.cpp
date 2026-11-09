@@ -124,14 +124,29 @@ bool PCFutbolTemporadaReal::leerFichero(const QString &ruta, const QList<EQUIPO>
         const int n = int(e.EquipoIdDBC) - 950000;
         for (const JUGADOR &j : e.lista_jugadores) plantilla[n].insert(j.puntero);
     }
+    QSet<Clave> claves;
+    int sinJugador = 0;
     for (const Ref &r : refs)
     {
         int t = r.equipo;
         // un suceso puede ser de un jugador del otro equipo
         if (r.suceso && !plantilla.value(t).contains(r.jugador) && plantilla.value(r.otro).contains(r.jugador))
             t = r.otro;
-        m_claves.insert(qMakePair(quint32(950000 + t), r.jugador));
+        if (!plantilla.value(t).contains(r.jugador)) sinJugador++;
+        claves.insert(qMakePair(quint32(950000 + t), r.jugador));
     }
+    // Comprobación de que se ha entendido el fichero: en el juego sin tocar
+    // todos los jugadores de los partidos existen (4.5: 0 de 6.000 fallan).
+    // La 4.0 usa otra variante (FF 00 en vez de FFFF, y en Segunda no son
+    // punteros): si falla más de un 2 %, se descarta para no dar avisos falsos.
+    if (!refs.isEmpty() && sinJugador * 50 > refs.size())
+    {
+        m_error += QString("%1: formato distinto al de la 4.5 (%2 de %3 jugadores no cuadran); "
+                           "no se comprueban sus jugadores. ")
+                       .arg(QDir(ruta).dirName()).arg(sinJugador).arg(refs.size());
+        return false;
+    }
+    m_claves.unite(claves);
     return bien;
 }
 

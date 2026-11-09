@@ -93,6 +93,21 @@ El número de jornada solo va delante del primer partido de cada jornada. El
 lector distingue los dos casos intentando leer un partido completo, en el
 que los dos bloques de equipo deben coincidir con local y visitante.
 
+### PC Fútbol 4.0
+
+- La 4.0 salió con muy pocas jornadas jugadas: su `JORNAD1.DBC` ocupa 22 KB
+  frente a 496 KB, y su `JORNAD2.DBC` 3,7 KB.
+- `JORNAD2` de la 4.0 usa otra variante: «sin sustituto» es `FF 00`, y los
+  jugadores van numerados 1 a 11 en vez de por puntero.
+- El lector se valida solo: si más de un 2 % de los jugadores no existen en
+  su equipo, descarta ese fichero y lo dice en la barra de estado, en vez de
+  dar errores falsos. Resultado:
+  - 4.0: JORNAD1 aceptado (388 jugadores protegidos), JORNAD2 descartado y
+    0 problemas en el juego sin tocar;
+  - 4.5: sin cambios (786 jugadores, 0 problemas).
+- **No se ha comprobado en la 4.0 si el menú se cuelga** igual al quitar un
+  jugador.
+
 ## Textos largos (biografía y declaraciones del entrenador, comentario del jugador)
 
 Se guardan como **líneas de pantalla ya partidas por palabras**, de 68 a 74
