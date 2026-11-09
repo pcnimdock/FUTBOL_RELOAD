@@ -25,8 +25,10 @@ DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog
         "El número de equipos es fijo (22 en Primera, 20 en Segunda): sólo se puede "
         "cambiar QUIÉN juega en cada una. El orden de Primera y Segunda es la "
         "clasificación de la temporada anterior.\n"
-        "Se modifican PCMANAG.DAT, PROMANAG.DAT y PCFUTBOL.DAT (con copia .bak). "
-        "Sólo afecta a partidas NUEVAS: las ligas ya grabadas no cambian.", this);
+        "Se modifican PCMANAG.DAT y PROMANAG.DAT (con copia .bak): afecta a las ligas "
+        "(Arcade, Entrenador, Manager, Promanager) y al amistoso, sólo en partidas NUEVAS. "
+        "La base de datos y el seguimiento de la liga real 95/96 (PCFUTBOL.DAT) no "
+        "cambian: van ligados al calendario real y el juego falla si se tocan.", this);
     lblAyuda->setWordWrap(true);
 
     const char *titulos[3] = {"Primera División (22)", "Segunda División (20)", "Segunda B"};
@@ -95,6 +97,23 @@ DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog
         return;
     }
     rellenar();
+
+    // Una versión anterior del editor también modificaba PCFUTBOL.DAT, y eso
+    // hace fallar el juego ("Equipo no encontrado"). Ofrecer restaurarlo.
+    if (m_ligas.pcfutbolModificadoAntes())
+    {
+        if (QMessageBox::warning(this, "PCFUTBOL.DAT modificado",
+                "PCFUTBOL.DAT es distinto de su copia PCFUTBOL.DAT.bak. Una versión anterior "
+                "del editor lo modificaba al cambiar las ligas, y eso hace que el juego falle "
+                "con «ERROR: Equipo no encontrado» al entrar en el amistoso o en el "
+                "seguimiento de la liga.\n\n¿Restaurar PCFUTBOL.DAT desde la copia .bak?",
+                QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes)
+        {
+            QString err;
+            if (!m_ligas.restaurarPcfutbol(&err))
+                QMessageBox::critical(this, "Error", err);
+        }
+    }
 
     // Que la ventana quepa en pantallas pequeñas (contenido con barras de desplazamiento)
     UtilVentanas::hacerDesplazable(this);
@@ -202,8 +221,8 @@ void DialogLigas::guardar()
         return;
     }
     if (QMessageBox::question(this, "Confirmar",
-            "Se van a modificar los ejecutables del juego (PCMANAG.DAT, PROMANAG.DAT y "
-            "PCFUTBOL.DAT). La primera vez se guarda una copia .bak de cada uno.\n\n"
+            "Se van a modificar los ejecutables del juego PCMANAG.DAT y PROMANAG.DAT. "
+            "La primera vez se guarda una copia .bak de cada uno.\n\n"
             "Trabaja sobre una COPIA del juego. ¿Continuar?",
             QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
         return;

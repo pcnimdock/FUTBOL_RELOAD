@@ -20,7 +20,15 @@
  *     PCMANAG 0xA3B24, PROMANAG 0x981A0. El código la recorre con bucles
  *     "cmp $0xA8" (42*4) y la clasificación usa filas de 22 (imul $0x16).
  *   - PCFUTBOL.DAT (base de datos informativa): 22 de Primera, 0xFFFF,
- *     20 de Segunda, 0xFFFF, en 0x54344.
+ *     20 de Segunda, 0xFFFF, en 0x54344. ¡NO SE MODIFICA! Comprobado en
+ *     DOSBox: PCFUTBOL.DAT cruza esa tabla con el calendario real de la
+ *     temporada 95/96 (JORNAD1.DBC = Primera, JORNAD2.DBC = Segunda, IDs
+ *     de equipo en u16) a través de RetEquipPtr (0x29430), que sólo busca
+ *     en la división cargada. Si se intercambia un equipo, al entrar en el
+ *     amistoso o el seguimiento sale "ERROR: Equipo no encontrado [id]".
+ *     Los modos de liga (PCMANAG/PROMANAG) no usan JORNAD*.DBC: con sólo
+ *     esos dos parcheados la Liga Manager arranca con la composición nueva
+ *     (verificado) y el amistoso también la usa.
  *  (tools/ligas_pcf.py sólo modificaba la lista larga; esta versión
  *  modifica todas las copias.)
  *
@@ -87,6 +95,12 @@ public:
     // Escribe la lista en todas las tablas encontradas. Antes de tocar cada
     // ejecutable crea una copia <fichero>.bak (sólo si no existe ya).
     bool guardar(QString *error, QStringList *informe);
+
+    // true si PCFUTBOL.DAT tiene copia .bak y es distinto de ella: lo dejó
+    // modificado una versión anterior del editor y conviene restaurarlo.
+    bool pcfutbolModificadoAntes() const;
+    // Restaura PCFUTBOL.DAT desde PCFUTBOL.DAT.bak
+    bool restaurarPcfutbol(QString *error) const;
 
 private:
     struct ImagenLE {

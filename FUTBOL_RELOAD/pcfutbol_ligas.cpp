@@ -289,7 +289,9 @@ bool PCFutbolLigas::cargar(const QString &carpetaJuego, QString *error)
     }
     buscarTablas(manager);
 
-    for (const QString &otro : {QString("PROMANAG.DAT"), QString("PCFUTBOL.DAT")})
+    // PCFUTBOL.DAT NO se toca: su tabla debe seguir coincidiendo con el
+    // calendario real 95/96 (JORNAD*.DBC) o el juego falla. Ver el .h.
+    for (const QString &otro : {QString("PROMANAG.DAT")})
     {
         const QString ruta = rutaSinMayusculas(dir, otro);
         if (!QFile::exists(ruta)) continue;
@@ -374,4 +376,33 @@ bool PCFutbolLigas::guardar(QString *error, QStringList *informe)
     }
     // Relee para que las tablas reflejen lo que hay ahora en disco
     return cargar(m_carpeta, error);
+}
+
+bool PCFutbolLigas::pcfutbolModificadoAntes() const
+{
+    const QDir dir(m_carpeta);
+    const QString ruta = rutaSinMayusculas(dir, "PCFUTBOL.DAT");
+    QFile a(ruta), b(ruta + ".bak");
+    if (!b.exists() || !a.open(QIODevice::ReadOnly) || !b.open(QIODevice::ReadOnly)) return false;
+    return a.readAll() != b.readAll();
+}
+
+bool PCFutbolLigas::restaurarPcfutbol(QString *error) const
+{
+    const QDir dir(m_carpeta);
+    const QString ruta = rutaSinMayusculas(dir, "PCFUTBOL.DAT");
+    QFile b(ruta + ".bak");
+    if (!b.open(QIODevice::ReadOnly))
+    {
+        if (error) *error = "No se puede leer " + ruta + ".bak";
+        return false;
+    }
+    const QByteArray datos = b.readAll();
+    QFile f(ruta);
+    if (!f.open(QIODevice::WriteOnly) || f.write(datos) != datos.size())
+    {
+        if (error) *error = "No se puede escribir " + ruta;
+        return false;
+    }
+    return true;
 }

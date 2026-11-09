@@ -18,7 +18,12 @@ QUÉ HACE
                                           + tabla de 42 (Primera+Segunda)
                                           con la que arranca la partida
       PROMANAG.DAT  (modo ProManager)     igual que PCMANAG
-      PCFUTBOL.DAT  (base de datos)       22 IDs, 0xFFFF, 20 IDs, 0xFFFF
+
+  PCFUTBOL.DAT (base de datos, 22 IDs, 0xFFFF, 20 IDs, 0xFFFF) NO se toca:
+  va ligado al calendario real 95/96 (JORNAD1.DBC / JORNAD2.DBC) y, si se
+  cambia, el juego falla con "ERROR: Equipo no encontrado [id]" al entrar
+  en el amistoso (comprobado en DOSBox). Con PCMANAG y PROMANAG basta: la
+  Liga Manager arranca con la composición nueva y el amistoso la usa.
 
   El NÚMERO de equipos (22 y 20) NO se puede cambiar con esta herramienta:
   está fijado en el código del juego (11/10 partidos por jornada, 42/38
@@ -169,8 +174,20 @@ def buscar_tablas_42(d, primera, segunda, excluir):
 EJECUTABLES = [
     ('PCMANAG.DAT', 'manager'),
     ('PROMANAG.DAT', 'manager'),
-    ('PCFUTBOL.DAT', 'pcfutbol'),
+    # PCFUTBOL.DAT no: ver la ayuda (rompe el calendario real 95/96)
 ]
+
+
+def avisar_pcfutbol(juego):
+    """Una versión anterior modificaba PCFUTBOL.DAT: avisar si difiere del .bak."""
+    ruta = os.path.join(juego, 'PCFUTBOL.DAT')
+    if os.path.isfile(ruta) and os.path.isfile(ruta + '.bak'):
+        with open(ruta, 'rb') as f, open(ruta + '.bak', 'rb') as g:
+            if f.read() != g.read():
+                print('AVISO: PCFUTBOL.DAT es distinto de PCFUTBOL.DAT.bak. Una versión anterior '
+                      'de esta herramienta lo modificaba y eso hace fallar el juego ("Equipo no '
+                      'encontrado"). Restáuralo: copia PCFUTBOL.DAT.bak encima de PCFUTBOL.DAT.',
+                      file=sys.stderr)
 
 
 class Tabla:
@@ -194,6 +211,7 @@ class Tabla:
 
 
 def leer_tablas(juego):
+    avisar_pcfutbol(juego)
     tablas = []
     for nombre, tipo in EJECUTABLES:
         ruta = os.path.join(juego, nombre)
@@ -212,7 +230,7 @@ def leer_tablas(juego):
                                                  ids[N_PRIMERA:N_PRIMERA + N_SEGUNDA], {off}):
                 tablas.append(Tabla(ruta, 'tabla42', off42, ids42))
     if not tablas:
-        sys.exit('ERROR: no se encuentra PCMANAG.DAT / PROMANAG.DAT / PCFUTBOL.DAT en ' + juego)
+        sys.exit('ERROR: no se encuentra PCMANAG.DAT / PROMANAG.DAT en ' + juego)
     return tablas
 
 

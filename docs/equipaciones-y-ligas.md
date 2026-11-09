@@ -126,16 +126,32 @@ IDs de equipo (el número de `EQ95xxxx.DBC`) en u32 little-endian:
 | `PCMANAG.DAT` | `0xA9924` | `0xA3B24` | tabla de 42 (Primera + Segunda) |
 | `PROMANAG.DAT` | `0xAAABC` | `0x964BC` | lista larga |
 | `PROMANAG.DAT` | `0xAC7A0` | `0x981A0` | tabla de 42 (aquí Albacete y Valladolid van al revés) |
-| `PCFUTBOL.DAT` | `0x58344` | `0x54344` | 22 IDs, `0xFFFF`, 20 IDs, `0xFFFF` |
+| `PCFUTBOL.DAT` | `0x58344` | `0x54344` | 22 IDs, `0xFFFF`, 20 IDs, `0xFFFF` — **no se debe modificar** (ver abajo) |
 
 - La lista larga está ordenada por la clasificación de la temporada anterior
   (Real Madrid, Deportivo, Betis...). En Segunda B, Ávila y Manchego aparecen
   dos veces: por eso un intercambio debe sustituir **todas** las apariciones.
 - La tabla de 42 se recorre con bucles `cmp ...,0xA8` (42×4) y se rellena
   desde el fichero al cargar una liga grabada.
-- No se sabe cuál de las copias manda al empezar partida, así que las
-  herramientas modifican **todas**. (La primera versión de `ligas_pcf.py` sólo
-  tocaba la lista larga; corregido.)
+- Las herramientas modifican todas las copias de `PCMANAG.DAT` y
+  `PROMANAG.DAT`. (La primera versión de `ligas_pcf.py` sólo tocaba la lista
+  larga; corregido.)
+
+### Probado en el juego (DOSBox, Real Madrid ↔ Mallorca)
+
+- Con `PCMANAG.DAT` y `PROMANAG.DAT` parcheados, el **amistoso** muestra al
+  Mallorca entre los de 1ª y el partido se juega, y una **Liga Manager nueva**
+  arranca con el Mallorca en Primera y el Real Madrid en Segunda (puesto 10).
+- Los clasificados para Europa salen de otra tabla: el Madrid, aun en Segunda,
+  sigue jugando la Copa de Europa.
+- **Parchear también `PCFUTBOL.DAT` rompe el juego**: al entrar en el
+  amistoso sale `RetEquipPtr: ERROR: Equipo no encontrado [4]`. `PCFUTBOL.DAT`
+  lee el calendario real de la temporada 95/96 de `JORNAD1.DBC` (Primera) y
+  `JORNAD2.DBC` (Segunda), con los IDs de equipo en u16, y los busca con
+  `RetEquipPtr` (`0x29430`, imagen con base `0x10000`) sólo entre los equipos
+  de esa división según su tabla. Por eso esa tabla tiene que quedarse como
+  la temporada real. El editor y `ligas_pcf.py` ya no la tocan y avisan si
+  `PCFUTBOL.DAT` difiere de su `.bak` (el editor ofrece restaurarlo).
 
 - El código accede a ella como `tabla[división*22 + puesto]` y aborta si el
   índice pasa de 41.
