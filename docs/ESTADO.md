@@ -22,7 +22,7 @@ Ampliar el editor FUTBOL_RELOAD para PC Fútbol 4.5 y poder:
 | Que no se confundan las equipaciones (**2ª / 3ª equipación**) | ✅ Hecho y probado en el juego (no hay 3ª) |
 | Editar las **características físicas** de los jugadores | ✅ Ya existía en el editor (piel, pelo, altura, peso) |
 | Cambiar **qué equipos** juegan en Primera y Segunda | ✅ Hecho y probado en el juego |
-| Cambiar **cuántos equipos** hay en la liga | ❌ Pendiente (lo más difícil) |
+| Cambiar **cuántos equipos** hay en la liga | ⛔ Descartado por el usuario (9/11/2026): sería rehacer medio juego |
 | Dibujo del kit de la ficha del equipo (`CAMISAS/*.DFG`) | 🟡 Formato descifrado, falta la paleta |
 
 ---
@@ -235,7 +235,13 @@ Todas las direcciones de esta documentación son de esa imagen (base
 
 ## 7. Lo que falta, por orden de prioridad
 
-### 7.1 Cambiar el número de equipos de la liga (pendiente principal)
+Prioridad actual: **7.2** (dibujo del kit) y después **7.3** (clasificados para Europa).
+
+### 7.1 Cambiar el número de equipos de la liga — DESCARTADO
+
+El usuario lo descartó el 9/11/2026 («sería como hacer todo el juego otra vez»).
+**No retomarlo** salvo que lo pida expresamente. Se conserva el análisis por si acaso:
+
 
 Análisis previo en `equipaciones-y-ligas.md` §4. En resumen:
 
