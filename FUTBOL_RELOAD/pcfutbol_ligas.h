@@ -90,11 +90,28 @@ public:
 
     // Restaura la lista tal y como se leyó
     void deshacerTodo();
-    bool modificada() const { return m_lista != m_listaOriginal; }
+    bool modificada() const { return m_lista != m_listaOriginal || m_europa != m_europaOriginal; }
 
     // Escribe la lista en todas las tablas encontradas. Antes de tocar cada
     // ejecutable crea una copia <fichero>.bak (sólo si no existe ya).
     bool guardar(QString *error, QStringList *informe);
+
+    // --- Clasificados para Europa (1ª temporada de una partida nueva) -------
+    // Tabla de u32 en PCMANAG (0xA21AC) y PROMANAG (0x9639C), en memoria:
+    //   4, ids..., 0xFFFF   Copa de Europa
+    //   3, ids..., 0xFFFF   Recopa
+    //   2, ids..., 0xFFFF   UEFA
+    //   0xFFFF              fin            (15 u32 reservados en total)
+    // La lee la función de 0x1B091 de PCMANAG; al acabar cada temporada el
+    // juego la reescribe con los clasificados reales (0x36CF4), así que sólo
+    // decide la primera temporada. Verificado en DOSBox (Mallorca a la Copa
+    // de Europa, Valencia a la UEFA). Aquí sólo se cambian los equipos, no
+    // cuántos van a cada competición.
+    enum Competicion { CopaEuropa = 0, Recopa = 1, UEFA = 2 };
+    static QString nombreCompeticion(int c);
+    QVector<quint32> europa(int competicion) const { return m_europa.value(competicion); }
+    void setEuropa(int competicion, int puesto, quint32 id);
+    bool europaEncontrada() const { return !m_tablasEuropa.isEmpty(); }
 
     // true si PCFUTBOL.DAT tiene copia .bak y es distinto de ella: lo dejó
     // modificado una versión anterior del editor y conviene restaurarlo.
@@ -121,12 +138,16 @@ private:
     void leerEquipos(const QString &carpetaJuego);
     bool buscarListaCanonica(const ImagenLE &img);
     void buscarTablas(const ImagenLE &img);
+    void buscarTablaEuropa(const ImagenLE &img);
 
     QString m_carpeta;
     QVector<quint32> m_lista, m_listaOriginal;
     QMap<quint32, quint32> m_permutacion;   // ID original -> ID que lo sustituye
     QVector<Tabla> m_tablas;
     QMap<quint32, Equipo> m_equipos;
+    // Clasificados para Europa: por competición, los IDs; y dónde están
+    QVector<QVector<quint32>> m_europa, m_europaOriginal;
+    QVector<Tabla> m_tablasEuropa;      // valores = la tabla completa con marcas
 };
 
 #endif // PCFUTBOL_LIGAS_H

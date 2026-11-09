@@ -266,11 +266,73 @@ void PCFutbolLigas::buscarTablas(const ImagenLE &img)
     }
 }
 
+void PCFutbolLigas::buscarTablaEuropa(const ImagenLE &img)
+{
+    // Busca "4, ids, FFFF, 3, ids, FFFF, 2, ids, FFFF, FFFF" con IDs de
+    // equipos existentes y como mucho 15 u32 (lo que reserva el juego).
+    static const quint32 codigos[3] = {4, 3, 2};
+    for (const ImagenLE::Objeto &ob : img.objetos)
+    {
+        for (quint32 va = ob.base; va + 4 * 15 <= ob.base + ob.tam; va += 4)
+        {
+            QVector<quint32> todo;
+            QVector<QVector<quint32>> grupos;
+            quint32 p = va, v = 0;
+            bool ok = true;
+            for (int c = 0; c < 3 && ok; c++)
+            {
+                if (!leerU32(img, p, &v) || v != codigos[c]) { ok = false; break; }
+                todo.append(v); p += 4;
+                QVector<quint32> ids;
+                while (leerU32(img, p, &v) && v != 0xFFFF && m_equipos.contains(v) && ids.size() < 8)
+                {
+                    ids.append(v); todo.append(v); p += 4;
+                }
+                if (v != 0xFFFF || ids.isEmpty()) { ok = false; break; }
+                todo.append(v); p += 4;
+                grupos.append(ids);
+            }
+            if (!ok || !leerU32(img, p, &v) || v != 0xFFFF) continue;
+            todo.append(v);
+            if (todo.size() > 15) continue;
+
+            Tabla t;
+            t.fichero = img.nombre;
+            t.va = va;
+            t.longitud = todo.size();
+            t.valores = todo;
+            for (int b = 0; b < 4 * t.longitud; b++) t.offsets.append(offsetFichero(img, va + b));
+            m_tablasEuropa.append(t);
+            if (m_europa.isEmpty()) m_europa = grupos;
+            va += 4 * (todo.size() - 1);
+        }
+    }
+}
+
+QString PCFutbolLigas::nombreCompeticion(int c)
+{
+    switch (c)
+    {
+    case CopaEuropa: return "Copa de Europa";
+    case Recopa:     return "Recopa";
+    default:         return "UEFA";
+    }
+}
+
+void PCFutbolLigas::setEuropa(int competicion, int puesto, quint32 id)
+{
+    if (competicion < 0 || competicion >= m_europa.size()) return;
+    if (puesto < 0 || puesto >= m_europa[competicion].size()) return;
+    m_europa[competicion][puesto] = id;
+}
+
 bool PCFutbolLigas::cargar(const QString &carpetaJuego, QString *error)
 {
     m_carpeta = carpetaJuego;
     m_lista.clear();
     m_tablas.clear();
+    m_tablasEuropa.clear();
+    m_europa.clear();
     leerEquipos(carpetaJuego);
     if (m_equipos.size() < N_PRIMERA + N_SEGUNDA)
     {
@@ -288,6 +350,7 @@ bool PCFutbolLigas::cargar(const QString &carpetaJuego, QString *error)
         return false;
     }
     buscarTablas(manager);
+    buscarTablaEuropa(manager);
 
     // PCFUTBOL.DAT NO se toca: su tabla debe seguir coincidiendo con el
     // calendario real 95/96 (JORNAD*.DBC) o el juego falla. Ver el .h.
@@ -296,9 +359,10 @@ bool PCFutbolLigas::cargar(const QString &carpetaJuego, QString *error)
         const QString ruta = rutaSinMayusculas(dir, otro);
         if (!QFile::exists(ruta)) continue;
         ImagenLE img;
-        if (leerLE(ruta, &img, nullptr)) buscarTablas(img);
+        if (leerLE(ruta, &img, nullptr)) { buscarTablas(img); buscarTablaEuropa(img); }
     }
     m_listaOriginal = m_lista;
+    m_europaOriginal = m_europa;
     m_permutacion.clear();
     for (quint32 id : m_lista) m_permutacion.insert(id, id);
     return true;
@@ -325,6 +389,7 @@ void PCFutbolLigas::intercambiar(quint32 a, quint32 b)
 void PCFutbolLigas::deshacerTodo()
 {
     m_lista = m_listaOriginal;
+    m_europa = m_europaOriginal;
     for (auto it = m_permutacion.begin(); it != m_permutacion.end(); ++it) it.value() = it.key();
 }
 
@@ -333,6 +398,27 @@ bool PCFutbolLigas::guardar(QString *error, QStringList *informe)
     const QDir dir(m_carpeta);
     QMap<QString, QVector<Tabla>> porFichero;
     for (const Tabla &t : m_tablas) porFichero[t.fichero].append(t);
+    // Tabla de Europa: misma forma, con los equipos elegidos (sin permutar)
+    const bool europaCambiada = (m_europa != m_europaOriginal);
+    QMap<QString, QVector<Tabla>> europaPorFichero;
+    if (europaCambiada)
+    {
+        for (Tabla t : m_tablasEuropa)
+        {
+            QVector<quint32> nueva;
+            for (int c = 0; c < m_europa.size(); c++)
+            {
+                nueva.append(c == 0 ? 4u : (c == 1 ? 3u : 2u));
+                nueva += m_europa.at(c);
+                nueva.append(0xFFFF);
+            }
+            nueva.append(0xFFFF);
+            if (nueva.size() != t.longitud) continue; // nunca debería pasar
+            t.valores = nueva;
+            europaPorFichero[t.fichero].append(t);
+            if (!porFichero.contains(t.fichero)) porFichero[t.fichero] = {};
+        }
+    }
 
     for (auto it = porFichero.constBegin(); it != porFichero.constEnd(); ++it)
     {
@@ -364,6 +450,17 @@ bool PCFutbolLigas::guardar(QString *error, QStringList *informe)
             if (informe)
                 *informe << QString("%1: tabla en 0x%2 (%3 equipos)")
                                 .arg(it.key()).arg(t.va, 0, 16).arg(t.longitud);
+        }
+        for (const Tabla &t : europaPorFichero.value(it.key()))
+        {
+            for (int i = 0; i < t.longitud; i++)
+                for (int b = 0; b < 4; b++)
+                {
+                    const qint64 o = t.offsets.at(4 * i + b);
+                    if (o >= 0 && o < d.size()) d[o] = char((t.valores.at(i) >> (8 * b)) & 0xFF);
+                }
+            if (informe)
+                *informe << QString("%1: clasificados para Europa en 0x%2").arg(it.key()).arg(t.va, 0, 16);
         }
         f.seek(0);
         const bool ok = (f.write(d) == d.size());

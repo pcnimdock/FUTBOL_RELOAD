@@ -11,6 +11,9 @@
 #include <QGroupBox>
 #include <QMessageBox>
 #include <QSet>
+#include <QComboBox>
+#include <QGridLayout>
+#include <QSignalBlocker>
 
 DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog(parent)
 {
@@ -78,6 +81,9 @@ DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog
     QVBoxLayout *root = new QVBoxLayout(this);
     root->addWidget(lblAyuda);
     root->addLayout(cols, 1);
+    m_gbEuropa = new QGroupBox("Clasificados para Europa en la 1ª temporada de una partida nueva", this);
+    m_gbEuropa->setToolTip("Al acabar cada temporada el juego los recalcula con la clasificación real.");
+    root->addWidget(m_gbEuropa);
     root->addWidget(m_lblSeleccion);
     root->addWidget(m_lblAvisos);
     root->addLayout(botones);
@@ -96,6 +102,7 @@ DialogLigas::DialogLigas(const QString &carpetaJuego, QWidget *parent) : QDialog
         UtilVentanas::hacerDesplazable(this);
         return;
     }
+    construirEuropa();
     rellenar();
 
     // Una versión anterior del editor también modificaba PCFUTBOL.DAT, y eso
@@ -163,6 +170,7 @@ void DialogLigas::rellenar()
                        "juegan; sólo le faltan los datos de club. Aun así, prueba una partida "
                        "nueva antes de jugar en serio):");
     m_lblAvisos->setText(avisos.join("\n· "));
+    refrescarEuropa();
     m_btnGuardar->setText(m_ligas.modificada() ? "Guardar en el juego *" : "Guardar en el juego");
     m_elegidos.clear();
     m_btnIntercambiar->setEnabled(false);
@@ -240,4 +248,67 @@ void DialogLigas::guardar()
     QMessageBox::information(this, "Guardado",
                              "Composición de ligas guardada:\n\n" + informe.join("\n") +
                              "\n\nEmpieza una partida NUEVA para ver el cambio.");
+}
+
+// --- Clasificados para Europa ------------------------------------------------
+void DialogLigas::construirEuropa()
+{
+    QGridLayout *g = new QGridLayout(m_gbEuropa);
+    if (!m_ligas.europaEncontrada())
+    {
+        g->addWidget(new QLabel("No se ha encontrado la tabla de clasificados para Europa "
+                                "en PCMANAG.DAT/PROMANAG.DAT.", this), 0, 0);
+        return;
+    }
+    // Todos los equipos de la lista (Primera, Segunda, Segunda B), sin repetir
+    const QVector<quint32> l = m_ligas.lista();
+    QVector<quint32> ids;
+    for (quint32 id : l) if (!ids.contains(id)) ids.append(id);
+
+    m_cbEuropa.clear();
+    for (int c = 0; c < 3; c++)
+    {
+        const QVector<quint32> actuales = m_ligas.europa(c);
+        g->addWidget(new QLabel("<b>" + PCFutbolLigas::nombreCompeticion(c) + "</b>", this), 0, c);
+        QVector<QComboBox *> fila;
+        for (int p = 0; p < actuales.size(); p++)
+        {
+            QComboBox *cb = new QComboBox(this);
+            for (int i = 0; i < ids.size(); i++)
+            {
+                const int pos = l.indexOf(ids.at(i));
+                const QString div = pos < PCFutbolLigas::N_PRIMERA ? "1ª"
+                                  : (pos < PCFutbolLigas::N_PRIMERA + PCFutbolLigas::N_SEGUNDA ? "2ª" : "2ªB");
+                const PCFutbolLigas::Equipo e = m_ligas.equipo(ids.at(i));
+                cb->addItem(QString("%1 (%2)").arg(e.nombre.isEmpty() ? QString::number(ids.at(i)) : e.nombre, div),
+                            ids.at(i));
+            }
+            connect(cb, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, c, p, cb](int) {
+                m_ligas.setEuropa(c, p, cb->currentData().toUInt());
+                m_btnGuardar->setText(m_ligas.modificada() ? "Guardar en el juego *" : "Guardar en el juego");
+            });
+            g->addWidget(cb, 1 + p, c);
+            fila.append(cb);
+        }
+        m_cbEuropa.append(fila);
+    }
+    QLabel *nota = new QLabel("Sólo se cambia QUIÉN va, no cuántos (1 a la Copa de Europa, 2 a la "
+                              "Recopa, 3 a la UEFA). Probado en el juego.", this);
+    nota->setWordWrap(true);
+    nota->setStyleSheet("color:#9fb0b8;");
+    g->addWidget(nota, 4, 0, 1, 3);
+}
+
+void DialogLigas::refrescarEuropa()
+{
+    for (int c = 0; c < m_cbEuropa.size(); c++)
+    {
+        const QVector<quint32> actuales = m_ligas.europa(c);
+        for (int p = 0; p < m_cbEuropa.at(c).size() && p < actuales.size(); p++)
+        {
+            QComboBox *cb = m_cbEuropa.at(c).at(p);
+            const QSignalBlocker bloqueo(cb);
+            cb->setCurrentIndex(cb->findData(actuales.at(p)));
+        }
+    }
 }

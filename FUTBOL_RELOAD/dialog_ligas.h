@@ -14,6 +14,8 @@ class QListWidget;
 class QListWidgetItem;
 class QLabel;
 class QPushButton;
+class QComboBox;
+class QGroupBox;
 
 class DialogLigas : public QDialog
 {
@@ -30,6 +32,8 @@ private slots:
 
 private:
     void rellenar();
+    void construirEuropa();   // desplegables de clasificados para Europa
+    void refrescarEuropa();   // los pone según m_ligas (sin emitir señales)
     QString textoEquipo(quint32 id, int pos) const;
 
     PCFutbolLigas m_ligas;
@@ -39,6 +43,8 @@ private:
     QLabel *m_lblAvisos;
     QPushButton *m_btnIntercambiar;
     QPushButton *m_btnGuardar;
+    QGroupBox *m_gbEuropa = nullptr;
+    QVector<QVector<QComboBox *>> m_cbEuropa;   // [competición][plaza]
     // Últimos dos equipos elegidos (de listas distintas): {lista, id}
     QList<QPair<int, quint32>> m_elegidos;
 };
