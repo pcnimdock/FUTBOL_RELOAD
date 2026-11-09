@@ -510,7 +510,7 @@ DialogEquipacion::DialogEquipacion(QWidget *parent) : QDialog(parent)
     QPushButton *btnRepPal = new QPushButton("Usar color de la paleta", this);
     QPushButton *btnChoques = new QPushButton("Comprobar choques con otros equipos…", this);
     btnRepCalc->setToolTip("Toma el color más frecuente del torso de la camiseta.");
-    QGroupBox *gbChoque = new QGroupBox("Color para detectar choques", this);
+    QGroupBox *gbChoque = new QGroupBox("Color para detectar choques (automático)", this);
     gbChoque->setToolTip("El juego compara este color de la 1ª equipación de los dos equipos:\n"
                          "si sus tonos distan menos de 60°, el visitante juega con la 2ª.\n"
                          "Blanco, gris y negro sólo chocan entre sí. No hay 3ª equipación.");
@@ -830,6 +830,7 @@ void DialogEquipacion::aplicarPatron()
                                                                    m_spAncho->value(), true);
     PCFutbolEquipacion::copiarSoloCamiseta(m_tex[m_actual], generada);
     // Camiseta nueva: el color que usa el juego para los choques debe seguirla
+    m_repManual[m_actual] = false;
     m_rep[m_actual] = PCFutbolEquipacion::colorDominanteCamiseta(m_tex[m_actual]);
     refrescar();
 }
@@ -927,6 +928,7 @@ void DialogEquipacion::leerDelFichero()
             m_bloqueOrig[i] = bloque;
             m_undo[i].clear();
             m_rep[i] = -1;
+            m_repManual[i] = false;
             alguna = true;
         }
     }
@@ -972,6 +974,9 @@ void DialogEquipacion::guardarEnDisco()
             return;
         }
     }
+
+    // Color para detectar choques: recalcular las dos equipaciones si hace falta
+    for (int i = 0; i < 2; i++) ajustarColorRepAutomatico(i);
 
     bool ok = true;
     for (int i = 0; i < 2; i++)
@@ -1045,6 +1050,7 @@ void DialogEquipacion::actualizarColorRepresentativo()
         m_lblColorRep->setText("(indica la ruta de EQUIPOS.DAT)");
         return;
     }
+    ajustarColorRepAutomatico(m_actual);
     const QRgb rep = colorRepActual(m_actual);
     int h, l, s;
     PCFutbolEquipacion::rgbAHslJuego(qRed(rep), qGreen(rep), qBlue(rep), &h, &l, &s);
@@ -1052,14 +1058,27 @@ void DialogEquipacion::actualizarColorRepresentativo()
                             "&nbsp;RGB %2,%3,%4 · tono %5° · sat. %6%")
                         .arg(QColor(rep).name()).arg(qRed(rep)).arg(qGreen(rep)).arg(qBlue(rep))
                         .arg(h).arg(s);
-    if (m_rep[m_actual] >= 0)
-    {
-        texto += " <i>(cambiado, sin guardar)</i>";
-    }
+    texto += m_repManual[m_actual]
+        ? "<br><i>Elegido a mano: no se recalcula al cambiar la camiseta.</i>"
+        : "<br><i>Automático: sigue a la camiseta (se recalcula solo si la cambias).</i>";
+    if (m_rep[m_actual] >= 0) texto += " <i>Sin guardar.</i>";
 
-    // ¿Se parece a la camiseta? Se cuenta qué parte del torso "choca" con
-    // él; así una camiseta a rayas admite cualquiera de sus colores.
     const QByteArray &t = m_tex[m_actual];
+    if (m_repManual[m_actual] && !repPareceCamiseta(rep, t))
+    {
+        const QColor dom = colorPaleta(PCFutbolEquipacion::colorDominanteCamiseta(t));
+        texto += QString("<br><span style='color:#e0b34a'>⚠ No se parece a la camiseta "
+                         "(<span style='background:%1'>&nbsp;&nbsp;&nbsp;&nbsp;</span>): el juego "
+                         "decidiría los choques con un color que no es el real. Pulsa "
+                         "«Calcular desde la camiseta» para volver al modo automático.</span>").arg(dom.name());
+    }
+    m_lblColorRep->setText(texto);
+}
+
+bool DialogEquipacion::repPareceCamiseta(QRgb rep, const QByteArray &t) const
+{
+    // Se cuenta qué parte del torso "choca" con él (regla del juego); con un
+    // 20 % basta, así una camiseta a rayas admite cualquiera de sus colores.
     int total = 0, parecidos = 0;
     for (int p = 3 * PCFutbolEquipacion::ANCHO; p < t.size(); p++)
     {
@@ -1068,26 +1087,44 @@ void DialogEquipacion::actualizarColorRepresentativo()
         if (PCFutbolEquipacion::chocan(rep, colorPaleta(static_cast<quint8>(t.at(p))).rgb()))
             parecidos++;
     }
-    if (total > 0 && parecidos * 5 < total)
+    return total == 0 || parecidos * 5 >= total;
+}
+
+void DialogEquipacion::ajustarColorRepAutomatico(int i)
+{
+    if (i == m_actual) m_tex[i] = m_lienzo->textura();
+    if (m_repManual[i] || le_ruta->text().isEmpty()) return;
+    // Sólo si la camiseta ha cambiado respecto a la leída: un kit sin tocar
+    // conserva siempre su color (en uno de los 470 originales no se parece
+    // a la camiseta, y el juego lo usa así).
+    bool camisetaCambiada = false;
+    for (int p = 0; p < m_tex[i].size() && p < m_texOrig[i].size(); p++)
     {
-        const QColor dom = colorPaleta(PCFutbolEquipacion::colorDominanteCamiseta(t));
-        texto += QString("<br><span style='color:#e0b34a'>⚠ No se parece a la camiseta "
-                         "(<span style='background:%1'>&nbsp;&nbsp;&nbsp;&nbsp;</span>): el juego "
-                         "decidiría los choques con un color que no es el real. Pulsa "
-                         "«Calcular desde la camiseta».</span>").arg(dom.name());
+        if (PCFutbolEquipacion::esPosicionCamiseta(p) && m_tex[i].at(p) != m_texOrig[i].at(p))
+        {
+            camisetaCambiada = true;
+            break;
+        }
     }
-    m_lblColorRep->setText(texto);
+    if (!camisetaCambiada) return;
+    // Mientras el color (el del fichero o el ya calculado) siga pareciéndose a
+    // la camiseta no se toca: así se respetan los colores retocados a mano de
+    // los kits originales y no cambia nada si sólo se editan detalles.
+    if (repPareceCamiseta(colorRepActual(i), m_tex[i])) return;
+    m_rep[i] = PCFutbolEquipacion::colorDominanteCamiseta(m_tex[i]);
 }
 
 void DialogEquipacion::calcularColorRepresentativo()
 {
     m_tex[m_actual] = m_lienzo->textura();
+    m_repManual[m_actual] = false;
     m_rep[m_actual] = PCFutbolEquipacion::colorDominanteCamiseta(m_tex[m_actual]);
     refrescar();
 }
 
 void DialogEquipacion::usarColorPaletaRepresentativo()
 {
+    m_repManual[m_actual] = true;
     m_rep[m_actual] = m_paleta->colorSeleccionado();
     refrescar();
 }
@@ -1144,6 +1181,8 @@ void DialogEquipacion::comprobarChoques()
     const int nEquipos = todo.size() / (2 * PCFutbolEquipacion::TAM_BLOQUE);
     const int yo = sp_numero->value();
     const QStringList dbc = ficherosEquiposOrdenados();
+    ajustarColorRepAutomatico(0);
+    ajustarColorRepAutomatico(1);
     const QRgb mi1 = colorRepActual(0);
     const QRgb mi2 = colorRepActual(1);
 

@@ -114,6 +114,10 @@ Reglas:
 - Decide ese color, no la camiseta pintada. Probado: Valencia–Madrid → el
   Madrid sale de morado (2ª). Con el color representativo del Madrid en
   rojo, los dos juegan de blanco.
+- **El editor lo mantiene automáticamente**: al cambiar la camiseta
+  recalcula el color si ya no se parece. Los kits sin tocar no cambian
+  (comprobado con los 470). Probado en el juego: Valencia de rojo → el
+  Madrid juega con la 1ª.
 - El kit de cada equipo se busca en una tabla de 235 IDs dentro del
   ejecutable (`0xAE980` en `PCMANAG`, `0xA318C` en `PROMANAG`). Coincide con
   los `EQ*.DBC` ordenados. **Añadir equipos obligaría a ampliar esa tabla.**

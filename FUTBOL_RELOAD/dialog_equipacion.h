@@ -150,6 +150,10 @@ private:
     QImage vistaPartido(int escala) const;
     QRgb colorRepActual(int i) const;     // el que usará el juego al guardar
     void actualizarColorRepresentativo();
+    // Modo automático: si la camiseta ha cambiado y el color representativo
+    // ya no se parece a ella, se pone el color dominante de la camiseta.
+    void ajustarColorRepAutomatico(int i);
+    bool repPareceCamiseta(QRgb rep, const QByteArray &textura) const;
     QStringList ficherosEquiposOrdenados() const; // EQ*.DBC en el orden de EQUIPOS.DAT
 
     QByteArray m_tex[2];      // 0 = 1ª equipación, 1 = 2ª
@@ -188,6 +192,8 @@ private:
     // Color representativo (bytes 185 y 187-189): decide los choques de
     // color en el partido. -1 = sin cambios respecto al fichero.
     int m_rep[2] = { -1, -1 };
+    // true si el usuario eligió el color a mano (no se recalcula solo)
+    bool m_repManual[2] = { false, false };
     QLabel *m_lblColorRep = nullptr;
 };
 

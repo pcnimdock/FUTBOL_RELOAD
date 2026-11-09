@@ -89,9 +89,14 @@ El kit de cada equipo se busca en una tabla de 235 números de equipo dentro
 del ejecutable (`0xAE980` en `PCMANAG.DAT`, `0xA318C` en `PROMANAG.DAT`, en la
 imagen cargada); en la 4.5 coincide con los `EQ*.DBC` ordenados.
 
-En el editor, apartado **«Color para detectar choques»**: muestra el color,
-avisa si ya no se parece a la camiseta, lo calcula desde la camiseta o lo
-toma de la paleta, y «Aplicar patrón» lo recalcula solo. **«Comprobar
+En el editor, apartado **«Color para detectar choques (automático)»**: el
+color se recalcula solo cuando cambia la camiseta y el guardado ya no se
+parece a ella (se toma el color dominante del torso). Un kit sin tocar
+conserva siempre su color, incluidos los 29 retocados a mano. Si se elige a
+mano («Usar color de la paleta») se respeta y avisa si no se parece;
+«Calcular desde la camiseta» vuelve al modo automático. Probado en DOSBox:
+con el Valencia pintado de rojo, sin tocar nada más, el Madrid ya no cambia
+a la 2ª. **«Comprobar
 choques…»** aplica la regla del juego contra todos los equipos y marca los
 partidos en los que la 2ª equipación tampoco evita el choque.
 
