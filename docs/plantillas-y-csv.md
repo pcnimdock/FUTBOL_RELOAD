@@ -105,8 +105,27 @@ que los dos bloques de equipo deben coincidir con local y visitante.
   - 4.0: JORNAD1 aceptado (388 jugadores protegidos), JORNAD2 descartado y
     0 problemas en el juego sin tocar;
   - 4.5: sin cambios (786 jugadores, 0 problemas).
-- **No se ha comprobado en la 4.0 si el menú se cuelga** igual al quitar un
-  jugador.
+- `JORNAD2` de la 4.0 es **relleno**: textos «X», 0 espectadores, ningún
+  suceso, y en cada equipo los jugadores 1 a 11 con `FF 00` de sustituto.
+  Esos números no son punteros de esos equipos, así que descartarlo es
+  correcto. Si fueran puestos en la alineación, también están a salvo,
+  porque el editor mantiene la alineación de 1 a N.
+- El `PCFUTBOL.DAT` de la 4.0 tiene el mismo mensaje «NJugadorEquipo …
+  Jugador no encontrado», así que la protección de JORNAD1 hace falta
+  igual.
+- **No probado dentro del juego**: la copia del zip pide el escudo del
+  manual (protección anticopia) y no se ha saltado.
+- Comprobado sin abrir el juego:
+  - las 234 fichas y equipaciones se abren;
+  - EQUIPOS.DAT tiene 468 bloques (234 × 2);
+  - PCMANAG y PROMANAG de la 4.0 llevan la lista ordenada de IDs que usa
+    el editor para numerar los kits;
+  - se encuentran las tablas de ligas y Europa;
+  - hay 44 dibujos CAMISAS, con el mismo formato;
+  - CSV de ida y vuelta: 0 cambios;
+  - «Comprobar plantillas» en la 4.0 sin tocar: 0 problemas.
+- Copias para probar: `~/pcfutbol_trabajo/juego40_original` y
+  `juego40_pruebas`, con `dosbox/start40.sh FUTBOL4` y `run40.conf`.
 
 ## Textos largos (biografía y declaraciones del entrenador, comentario del jugador)
 
