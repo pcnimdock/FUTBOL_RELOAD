@@ -9,7 +9,7 @@ del juego.
 
 C++ / Qt 5.12+.
 
-**Trabajo en curso (equipaciones del partido, choques de color, composición de ligas, traspasos, CSV y temporada real):** ver [docs/ESTADO.md](docs/ESTADO.md), [docs/equipaciones-y-ligas.md](docs/equipaciones-y-ligas.md) y [docs/plantillas-y-csv.md](docs/plantillas-y-csv.md).
+**Trabajo en curso (equipaciones del partido, choques de color, composición de ligas, traspasos, CSV y temporada real):** ver [docs/ESTADO.md](docs/ESTADO.md), [docs/equipaciones-y-ligas.md](docs/equipaciones-y-ligas.md) [docs/plantillas-y-csv.md](docs/plantillas-y-csv.md) y [docs/partidas-y-tacticas.md](docs/partidas-y-tacticas.md).
 
 ## 📖 [Documentación completa en la Wiki](https://github.com/pcnimdock/FUTBOL_RELOAD/wiki)
 

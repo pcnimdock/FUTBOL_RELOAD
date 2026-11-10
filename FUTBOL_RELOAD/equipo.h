@@ -52,8 +52,10 @@ public:
     // verificada byte a byte contra los 234 DBC de PC Fútbol 4.0 (y válida
     // también en 4.5, donde la heurística antigua encajaba por casualidad):
     //
-    //   [202 bytes]  parte fija: pares u16 LE por competición (Liga, Copa,
-    //                Copa de Europa, Recopa, UEFA…) + varios campos sueltos
+    //   [202 bytes]  parte fija. Los primeros 176 son la TÁCTICA por defecto
+    //                del equipo (11 jugadores × 8 u16; ver
+    //                docs/partidas-y-tacticas.md). Los 26 restantes, campos
+    //                sueltos sin identificar.
     //   [1 byte   ]  L = longitud de la etiqueta de temporadas
     //   [L bytes  ]  etiqueta codificada (XOR 0x61). Los clubes con historial
     //                largo llevan " 2- 3- 4- … -18-19" (L=56); los modestos
