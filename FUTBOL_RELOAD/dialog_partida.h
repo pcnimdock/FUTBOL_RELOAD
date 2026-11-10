@@ -29,6 +29,10 @@ private:
     void mostrarEquipo(int i);
     void recogerTabla();
     void editarTactica();
+    int jugadorSeleccionado() const;      // índice en equipos()[m_actual].jugadores, o -1
+    void renombrar();
+    void traspasar();
+    void quitarBajas(bool todos);
     void guardar();
     void reject() override;
 

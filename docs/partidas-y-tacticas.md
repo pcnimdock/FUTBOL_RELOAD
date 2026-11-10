@@ -134,19 +134,35 @@ Tras la cabecera (ver tabla), lo que escribe `0x101e0`:
   [7] 2.500, y [13] y [14] la taquilla y las vallas del último partido en casa.
 - 6 u16, 11 u16 (sin identificar; no son la alineación) y 2 u16.
 
-**Jugador** (`0x322e1`):
+**Jugador** (`0x322e1`). Casi todo es copia de su ficha del DBC; se cruzaron
+1.027 jugadores y coinciden todos:
 
-- puntero, nombre corto y nombre largo;
-- u16 equipo (si es 9900, otro texto) y otro u16;
-- 7 u8: posición (0 POR … 3 DEL), demarcación, …, dorsal y **puesto en la
-  alineación**;
-- 20 u8 de estadísticas por competición (con restos de memoria sin inicializar;
-  el editor no los toca);
+- puntero, nombre corto y nombre largo (Latin-1 con XOR 0x61);
+- u16 **equipo de procedencia** (si es 9900, otro texto) y u16 **equipo
+  actual**. Al fichar, el juego deja en el primero el equipo de donde viene;
+- 7 u8: posición (0 POR … 3 DEL), demarcación, extranjero, piel, pelo, dorsal
+  y **puesto en la alineación** (de 1 a N sin huecos);
+- 20 u8: 5 competiciones × [`Incidencias`, `JornIncid`, `NJornIncid`,
+  `NAmarillas`]. Son los nombres que dan los mensajes de error de las
+  funciones `0x31bac`, `0x31c28`, `0x31ca4` y `0x31d20`. Incidencias 1 =
+  lesión (Raúl y Palacios, con cruz en el juego). Márquez, con tarjeta roja,
+  tenía `0,0,1`. En muchos jugadores sanos hay valores sin sentido (restos de
+  memoria), así que no se interpretan; los cuatro a 0 es un jugador limpio;
 - 2 u8;
-- **double: precio** (la columna PRECIO de «Vender»);
-- **4 u8: VE, RE, AG, CA**;
-- 4 u8 (0 o 1; ¿lesión, sanción…?);
+- **double: precio** (la columna PRECIO de «Vender»; precio del DBC × 1 millón);
+- **4 u8: VE, RE, AG, CA** y **4 u8: aptitudes de técnica, remate, pase y tiro**
+  (0/1, las mismas del DBC);
 - **u8: energía (EN)**. La media ME la calcula el juego.
+
+Reglas que cumple la partida en sus 1.060 jugadores:
+
+- equipo actual = id del equipo;
+- alineación de 1 a N sin huecos;
+- el equipo guarda su número de jugadores (5.º u16 tras el entrenamiento);
+- plantillas de 20 a 33 jugadores.
+
+Los jugadores en venta tienen **una copia** en la lista de traspasos, con su
+equipo. Los goles de la cola no usan el puntero del jugador.
 
 ### Reglas del entrenamiento (importante)
 
@@ -158,21 +174,42 @@ Además, el cuelgue borra `COMFILE.DAT` y el juego ya no arranca hasta reponerlo
 
 ### Editor de partidas (botón «Partida guardada…»)
 
-`pcfutbol_partida.*` y `dialog_partida.*`. Solo cambia valores en su sitio: el
-fichero no cambia de tamaño y, antes de escribir, se comprueba que se puede
-volver a leer. La primera vez deja copia `.bak`. Se puede cambiar:
+`pcfutbol_partida.*` y `dialog_partida.*`. La primera vez deja copia `.bak` y,
+antes de escribir, comprueba que la partida se puede volver a leer.
 
-- de cada equipo: la caja, el entrenamiento (con las reglas de arriba) y la
-  táctica;
-- de cada jugador: VE, RE, AG, CA, EN y precio.
+- **En su sitio** (el fichero no cambia de tamaño):
+  - de cada equipo: caja, entrenamiento (con las reglas de abajo) y táctica;
+  - de cada jugador: VE, RE, AG, CA, EN y precio;
+  - **«Quitar lesión y sanción»**, del jugador o de todo el equipo: pone a 0 los
+    20 bytes de incidencias, y también los de su copia en la lista de
+    traspasos.
+- **Reescribiendo el fichero:** se rehace a partir de los registros leídos.
+  Sin cambios sale idéntico byte a byte.
+  - **Cambiar nombre** (corto hasta 16 y largo hasta 40, letras de Latin-1).
+  - **Traspasar** a otro equipo de la liga, como un fichaje del juego:
+    - procedencia = origen y equipo actual = destino;
+    - va el último de la alineación del destino y se renumera la del origen;
+    - si su dorsal está ocupado, recibe el primero libre;
+    - se actualiza el número de jugadores de los dos equipos;
+    - si está en venta, su copia en la lista de traspasos pasa al destino;
+    - límites: origen con al menos 16 jugadores y destino con 33 como mucho.
+      No se mueve nada desde ni hacia el bloque 9900.
 
-Comprobado en el juego el 10/11/2026:
+Comprobado en el juego (10 y 11/11/2026):
 
 - la caja de 2.000 y de 3.000 millones aparece en «Caja»;
-- VE 99 y EN 50 de Buyo, y CA 99 de Hierro, aparecen en «Alineación»;
+- VE 99 y EN 50 de Buyo y CA 99 de Hierro aparecen en «Alineación»;
 - el precio de 123.456.789 aparece en «Vender» como «123 m.»;
 - la táctica 5-4-1 y el entrenamiento 30/20/25 aparecen en «Tácticas»;
-- después se jugó la jornada siguiente sin problemas.
+- «Buyazo» aparece en la alineación;
+- Hierro, traspasado al Rayo, ya no sale en el Real Madrid y los demás suben
+  un puesto;
+- Begiristain, traspasado al Rayo estando en venta, sale en «Comprar» como
+  «Rayo», y comprarlo desde el juego funciona («Jugador comprado»);
+- se jugó la jornada y el juego volvió a grabar la partida con todos los
+  cambios y las reglas intactas;
+- Raúl, lesionado (cruz «2»), queda sano tras «Quitar lesión y sanción», y la
+  media del equipo sube de 75 a 82.
 
 ### Consecuencia para el editor (comprobado en el juego)
 
@@ -189,10 +226,10 @@ partida guardada, no de los DBC.** Por tanto:
 
 ## Pendiente
 
-- Identificar los campos que quedan: los otros double del equipo, las 4
-  marcas 0/1 del jugador (¿lesión, sanción?) y las estadísticas. El método es
-  grabar, cambiar una sola cosa en el juego y comparar.
-- Cambiar nombres o mover jugadores de equipo exige reescribir el fichero, no
-  solo cambiar valores. Ya se conoce el formato entero, pero no está hecho.
+- Identificar los otros double del equipo y el significado exacto de
+  JornIncid y NJornIncid (cómo calcula el juego el número que enseña).
+- Mover jugadores desde o hacia el bloque 9900 (jugadores sin equipo), y
+  añadir jugadores nuevos.
+- Promanager (`PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`).
 - Promanager: `PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`, por probar.
 - Ficheros de muestra en `~/pcfutbol_trabajo/test3/partidas/` (fuera del repositorio).

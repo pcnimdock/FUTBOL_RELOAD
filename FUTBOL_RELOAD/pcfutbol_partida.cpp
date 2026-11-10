@@ -43,33 +43,51 @@ const int ID_ESTRELLAS = 9900;      // 0x26AC: jugadores sueltos («SEGUNDA B»)
 
 void leerJugador(Lector &r, PCFutbolPartida::Jugador *j)
 {
+    j->inicio = r.o;
     j->puntero = quint16(r.u16());
     j->nombreCorto = r.texto();
     j->nombreLargo = r.texto();
+    j->offEquipo = r.o;             // equipo de procedencia (el juego lo pone al fichar)
     const int equipo = r.u16();
     if (equipo == ID_ESTRELLAS) r.texto();
+    j->offEquipo2 = r.o;            // equipo actual
     r.u16();
     const int b0 = r.o;
-    r.saltar(7);                    // posición, demarcación, …, dorsal
+    j->offDatos = b0;
+    r.saltar(7);                    // posición, demarcación, extranjero, piel, pelo, dorsal, alineación
     if (!r.mal)
     {
         j->posicion = quint8(r.d[b0]);
+        j->extranjero = quint8(r.d[b0 + 2]) != 0;
         j->dorsal = quint8(r.d[b0 + 5]);
         j->alineacion = quint8(r.d[b0 + 6]);
     }
-    r.saltar(20);                   // estadísticas por competición
+    j->offIncidencias = r.o;        // 5 × [Incidencias, JornIncid, NJornIncid, NAmarillas]
+    if (r.hay(20))
+        for (int c = 0; c < 5; c++)
+        {
+            const int o = r.o + 4 * c;
+            if (quint8(r.d[o]) == 1 && quint8(r.d[o + 2]) > 0)
+            {
+                j->lesionado = true;
+                j->jornadasBaja = qMax(j->jornadasBaja, int(quint8(r.d[o + 2])));
+            }
+        }
+    r.saltar(20);
     r.saltar(2);
     j->offValor = r.o;
     j->valor = r.f64();
     j->offMedias = r.o;
     for (int i = 0; i < 4; i++) j->media[i] = r.u8();
-    r.saltar(4);
+    for (int i = 0; i < 4; i++) j->aptitud[i] = r.u8();
     j->offEnergia = r.o;
     j->energia = r.u8();
+    j->fin = r.o;
 }
 
 void leerEquipo(Lector &r, PCFutbolPartida::Equipo *e)
 {
+    e->inicio = r.o;
     e->nombreLargo = r.texto();
     e->nombreCorto = r.texto();
     r.texto();                      // nombre en mayúsculas
@@ -100,6 +118,7 @@ void leerEquipo(Lector &r, PCFutbolPartida::Equipo *e)
         e->caja = c.f64();
     }
     r.saltar(6 * 2 + 11 * 2 + 2 * 2);
+    e->fin = r.o;
 }
 
 } // namespace
@@ -120,6 +139,7 @@ bool PCFutbolPartida::cargarDatos(const QByteArray &datos, QString *error)
     m_datos = datos;
     m_original = datos;
     m_equipos.clear();
+    m_copias.clear();
     Lector r(m_datos);
     auto fallo = [&](const QString &donde) {
         if (error) *error = QString("No es una partida de Liga Manager de PC Fútbol 4.5 o está dañada "
@@ -165,9 +185,16 @@ bool PCFutbolPartida::cargarDatos(const QByteArray &datos, QString *error)
         r.u16(); r.f64(); r.u16(); r.f64();
         Jugador j;
         leerJugador(r, &j);
+        if (!r.mal)
+        {
+            Lector q(m_datos);
+            q.o = j.offEquipo;
+            m_copias << CopiaTraspaso{j.puntero, q.u16(), j.offEquipo, j.offEquipo2, j.offIncidencias};
+        }
     }
     r.saltar(42 * 2);               // orden de los equipos en cada división
     // Equipos: 1 + equipo, y 2 + jugador por cada uno; termina en 0
+    m_inicioEquipos = r.o;
     if (r.u16() != 1) return fallo("primer equipo");
     for (int k = 0; k < 60; k++)
     {
@@ -182,10 +209,10 @@ bool PCFutbolPartida::cargarDatos(const QByteArray &datos, QString *error)
         }
         if (r.mal) return fallo("equipo " + e.nombreCorto);
         m_equipos << e;
-        if (m == 0) break;
+        if (m == 0) { m_inicioCola = r.o; break; }
         if (m != 1) return fallo("tras el equipo " + e.nombreCorto);
     }
-    if (m_equipos.size() < 42) return fallo("número de equipos");
+    if (m_equipos.size() < 42 || m_inicioCola < 0) return fallo("número de equipos");
     return true;
 }
 
@@ -271,7 +298,7 @@ bool PCFutbolPartida::guardar(const QString &ruta, QString *error)
     // Comprobación: lo que se va a escribir se vuelve a leer igual
     PCFutbolPartida prueba;
     QString e;
-    if (m_datos.size() != m_original.size() || !prueba.cargarDatos(m_datos, &e))
+    if (!prueba.cargarDatos(m_datos, &e))
     {
         if (error) *error = "La partida modificada no se puede volver a leer; no se ha guardado. " + e;
         return false;
@@ -289,4 +316,207 @@ bool PCFutbolPartida::guardar(const QString &ruta, QString *error)
     }
     m_original = m_datos;
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// Cambios de tamaño: renombrar y traspasar
+// ---------------------------------------------------------------------------
+static void ponerU16(QByteArray &d, int o, int v)
+{
+    d[o] = char(v & 0xFF);
+    d[o + 1] = char((v >> 8) & 0xFF);
+}
+
+static QByteArray textoCodificado(const QString &t)
+{
+    const QByteArray l = t.toLatin1();
+    QByteArray b;
+    b.append(char(l.size()));
+    for (char c : l) b.append(char(quint8(c) ^ 0x61));
+    return b;
+}
+
+static bool textoValido(const QString &t, int maximo, const QString &que, QString *error)
+{
+    if (t.trimmed().isEmpty())
+    {
+        if (error) *error = que + " vacío";
+        return false;
+    }
+    if (t.size() > maximo)
+    {
+        if (error) *error = QString("%1: como mucho %2 letras (es lo más largo que hay en el juego)").arg(que).arg(maximo);
+        return false;
+    }
+    for (QChar c : t)
+        if (c.unicode() < 0x20 || c.unicode() > 0xFF)
+        {
+            if (error) *error = QString("%1: la letra «%2» no existe en el juego").arg(que, QString(c));
+            return false;
+        }
+    return true;
+}
+
+bool PCFutbolPartida::reconstruir(const QList<QList<QByteArray>> &jugadores, const QList<QByteArray> &cabeceras,
+                                  QString *error)
+{
+    QByteArray n = m_datos.left(m_inicioEquipos);
+    for (int k = 0; k < cabeceras.size(); k++)
+    {
+        n.append(char(1)); n.append(char(0));
+        n.append(cabeceras[k]);
+        for (const QByteArray &j : jugadores[k])
+        {
+            n.append(char(2)); n.append(char(0));
+            n.append(j);
+        }
+    }
+    n.append(char(0)); n.append(char(0));
+    n.append(m_datos.mid(m_inicioCola));
+    const QByteArray original = m_original, antes = m_datos;
+    QString e;
+    if (!cargarDatos(n, &e))
+    {
+        // no debería pasar: se deja todo como estaba
+        cargarDatos(antes, nullptr);
+        m_original = original;
+        if (error) *error = "Error interno al rehacer la partida: " + e;
+        return false;
+    }
+    m_original = original;          // para que «cambiada()» lo detecte
+    return true;
+}
+
+bool PCFutbolPartida::renombrarJugador(int equipo, int jugador, const QString &corto, const QString &largo,
+                                       QString *error)
+{
+    if (equipo < 0 || equipo >= m_equipos.size() || jugador < 0 || jugador >= m_equipos[equipo].jugadores.size())
+        return false;
+    if (!textoValido(corto, 16, "Nombre corto", error) || !textoValido(largo, 40, "Nombre largo", error))
+        return false;
+    aplicar();
+    QList<QList<QByteArray>> js;
+    QList<QByteArray> cs;
+    for (int k = 0; k < m_equipos.size(); k++)
+    {
+        const Equipo &e = m_equipos[k];
+        cs << m_datos.mid(e.inicio, e.fin - e.inicio);
+        QList<QByteArray> l;
+        for (int i = 0; i < e.jugadores.size(); i++)
+        {
+            const Jugador &j = e.jugadores[i];
+            QByteArray r = m_datos.mid(j.inicio, j.fin - j.inicio);
+            if (k == equipo && i == jugador)
+            {
+                QByteArray nuevo = r.left(2);
+                nuevo += textoCodificado(corto);
+                nuevo += textoCodificado(largo);
+                nuevo += r.mid(j.offEquipo - j.inicio);
+                r = nuevo;
+            }
+            l << r;
+        }
+        js << l;
+    }
+    return reconstruir(js, cs, error);
+}
+
+bool PCFutbolPartida::traspasar(int origen, int jugador, int destino, QString *info, QString *error)
+{
+    auto fallo = [&](const QString &t) { if (error) *error = t; return false; };
+    if (origen < 0 || origen >= m_equipos.size() || destino < 0 || destino >= m_equipos.size() ||
+        jugador < 0 || jugador >= m_equipos[origen].jugadores.size())
+        return fallo("Equipo o jugador no válido.");
+    const Equipo &eo = m_equipos[origen], &ed = m_equipos[destino];
+    if (origen == destino) return fallo("El jugador ya está en ese equipo.");
+    if (eo.id == ID_ESTRELLAS || ed.id == ID_ESTRELLAS)
+        return fallo("Los jugadores sin equipo (Estrellas / Segunda B) se guardan de otra forma; "
+                     "de momento no se pueden mover.");
+    if (eo.jugadores.size() - 1 < MIN_PLANTILLA)
+        return fallo(QString("%1 se quedaría con %2 jugadores (mínimo %3).")
+                         .arg(eo.nombreCorto).arg(eo.jugadores.size() - 1).arg(MIN_PLANTILLA));
+    if (ed.jugadores.size() + 1 > MAX_PLANTILLA)
+        return fallo(QString("%1 tendría %2 jugadores (máximo %3).")
+                         .arg(ed.nombreCorto).arg(ed.jugadores.size() + 1).arg(MAX_PLANTILLA));
+    const Jugador &jm = eo.jugadores[jugador];
+    for (const Jugador &j : ed.jugadores)
+        if (j.puntero == jm.puntero)
+            return fallo(QString("%1 ya tiene un jugador con la misma identidad (%2).").arg(ed.nombreCorto, j.nombreCorto));
+
+    aplicar();
+    // Dorsal: el suyo si está libre en el destino; si no, el primero libre
+    QList<int> usados;
+    for (const Jugador &j : ed.jugadores) usados << j.dorsal;
+    int dorsal = jm.dorsal;
+    if (usados.contains(dorsal))
+        for (dorsal = 1; usados.contains(dorsal); dorsal++) {}
+    const int alineacion = ed.jugadores.size() + 1;
+
+    // Copia en la lista de traspasos (está antes de los equipos: mismo sitio)
+    int copias = 0;
+    for (const CopiaTraspaso &c : m_copias)
+        if (c.puntero == jm.puntero && c.equipo == eo.id)
+        {
+            ponerU16(m_datos, c.offEquipo, ed.id);
+            ponerU16(m_datos, c.offEquipo2, ed.id);
+            copias++;
+        }
+
+    // El registro movido, ya con su equipo, dorsal y puesto nuevos
+    QByteArray movido = m_datos.mid(jm.inicio, jm.fin - jm.inicio);
+    // Como hace el juego al fichar: el primer u16 queda con el equipo de
+    // procedencia y el segundo con el equipo actual
+    ponerU16(movido, jm.offEquipo - jm.inicio, eo.id);
+    ponerU16(movido, jm.offEquipo2 - jm.inicio, ed.id);
+    movido[jm.offDatos - jm.inicio + 5] = char(dorsal);
+    movido[jm.offDatos - jm.inicio + 6] = char(alineacion);
+
+    QList<QList<QByteArray>> js;
+    QList<QByteArray> cs;
+    for (int k = 0; k < m_equipos.size(); k++)
+    {
+        const Equipo &e = m_equipos[k];
+        QByteArray cab = m_datos.mid(e.inicio, e.fin - e.inicio);
+        const int offNum = e.offEntrenamiento - e.inicio + 8;     // nº de jugadores
+        if (k == origen) ponerU16(cab, offNum, e.jugadores.size() - 1);
+        if (k == destino) ponerU16(cab, offNum, e.jugadores.size() + 1);
+        cs << cab;
+        QList<QByteArray> l;
+        for (int i = 0; i < e.jugadores.size(); i++)
+        {
+            if (k == origen && i == jugador) continue;
+            const Jugador &j = e.jugadores[i];
+            QByteArray r = m_datos.mid(j.inicio, j.fin - j.inicio);
+            if (k == origen && j.alineacion > jm.alineacion)
+                r[j.offDatos - j.inicio + 6] = char(j.alineacion - 1);
+            l << r;
+        }
+        if (k == destino) l << movido;
+        js << l;
+    }
+
+    const QString nombre = jm.nombreCorto, de = eo.nombreCorto, a = ed.nombreCorto;
+    const int dorsalAntes = jm.dorsal;
+    if (!reconstruir(js, cs, error)) return false;
+    if (info)
+    {
+        *info = QString("%1: %2 → %3, puesto %4 de la alineación").arg(nombre, de, a).arg(alineacion);
+        if (dorsal != dorsalAntes) *info += QString(", dorsal %1 (el %2 estaba ocupado)").arg(dorsal).arg(dorsalAntes);
+        if (copias) *info += ", también en la lista de traspasos";
+    }
+    return true;
+}
+
+void PCFutbolPartida::quitarBajas(int equipo, int jugador)
+{
+    if (equipo < 0 || equipo >= m_equipos.size() || jugador < 0 || jugador >= m_equipos[equipo].jugadores.size())
+        return;
+    Jugador &j = m_equipos[equipo].jugadores[jugador];
+    if (j.offIncidencias < 0) return;
+    for (int i = 0; i < 20; i++) m_datos[j.offIncidencias + i] = 0;
+    for (const CopiaTraspaso &c : m_copias)
+        if (c.puntero == j.puntero && c.equipo == m_equipos[equipo].id && c.offIncidencias >= 0)
+            for (int i = 0; i < 20; i++) m_datos[c.offIncidencias + i] = 0;
+    j.lesionado = false;
+    j.jornadasBaja = 0;
 }

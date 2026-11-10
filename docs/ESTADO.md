@@ -262,6 +262,7 @@ Commits principales, del más reciente al más antiguo:
 
 | Commit | Qué |
 |---|---|
+| (11/11/2026) | Partidas guardadas: cambiar nombres, traspasar jugadores entre equipos y quitar lesiones/sanciones. Identificados todos los campos del jugador. Verificado en el juego (también comprando desde el juego al jugador traspasado) |
 | (10/11/2026, noche) | Botón «Partida guardada…»: editar una partida de Liga Manager en curso (caja, entrenamiento y táctica de cada equipo; VE/RE/AG/CA, EN y precio de cada jugador). Formato completo de `LIGA.n`. Verificado en el juego. Ver `docs/partidas-y-tacticas.md` |
 | (10/11/2026, noche) | Botón «Táctica…» en la ficha del equipo: campo de 15×9 con zona, defensa y ataque de cada titular, las 6 formaciones del juego, y cargar/grabar `TACTICS/TACTIC.nnn`. Verificado en el juego. Ver `docs/partidas-y-tacticas.md` |
 | (10/11/2026) | Ventana «Sonidos del partido» y conversor de audio (`pcfutbol_audio.*`, `dialog_sonidos.*`). Acepta WAV de cualquier tipo, AIFF, MP3, OGG y FLAC (decodificadores de dominio público en `thirdparty/`), o ffmpeg si está instalado. Filtra antes de pasar a 11.025 Hz, iguala el volumen al original y avisa si falta algún sonido. «Importar sonidos» usa el mismo conversor |

@@ -8,7 +8,9 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QColor>
 #include <QHeaderView>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -92,10 +94,31 @@ DialogPartida::DialogPartida(const QString &ruta, const PCFutbolPartida &partida
     m_tabla = new QTableWidget(0, NCol, this);
     m_tabla->setHorizontalHeaderLabels({"Nº", "Jugador", "Pos.", "VE", "RE", "AG", "CA", "EN", "Valor (pts)"});
     m_tabla->verticalHeader()->hide();
+    m_tabla->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_tabla->setSelectionMode(QAbstractItemView::SingleSelection);
     m_tabla->horizontalHeader()->setSectionResizeMode(ColNombre, QHeaderView::Stretch);
     m_tabla->setToolTip("VE velocidad, RE resistencia, AG agresividad, CA calidad (0–99), EN energía (0–99). "
                         "La media (ME) la calcula el juego.");
     der->addWidget(m_tabla, 1);
+    QHBoxLayout *acciones = new QHBoxLayout();
+    QPushButton *ren = new QPushButton("Cambiar nombre…", this);
+    ren->setToolTip("Nombre corto y largo del jugador seleccionado");
+    connect(ren, &QPushButton::clicked, this, &DialogPartida::renombrar);
+    QPushButton *tra = new QPushButton("Traspasar a…", this);
+    tra->setToolTip("Mover el jugador seleccionado a otro equipo de la liga (conserva todos sus datos)");
+    connect(tra, &QPushButton::clicked, this, &DialogPartida::traspasar);
+    QPushButton *baja = new QPushButton("Quitar lesión y sanción", this);
+    baja->setToolTip("Deja al jugador seleccionado sin lesión, sin sanción y sin amarillas acumuladas");
+    connect(baja, &QPushButton::clicked, this, [this]() { quitarBajas(false); });
+    QPushButton *bajas = new QPushButton("… a todo el equipo", this);
+    bajas->setToolTip("Lo mismo para toda la plantilla");
+    connect(bajas, &QPushButton::clicked, this, [this]() { quitarBajas(true); });
+    acciones->addWidget(ren);
+    acciones->addWidget(tra);
+    acciones->addWidget(baja);
+    acciones->addWidget(bajas);
+    acciones->addStretch();
+    der->addLayout(acciones);
     centro->addLayout(der, 1);
     root->addLayout(centro, 1);
 
@@ -178,8 +201,10 @@ void DialogPartida::mostrarEquipo(int i)
         num->setData(Qt::UserRole, orden[r]);
         num->setToolTip(QString("Puesto en la alineación (dorsal %1)").arg(j.dorsal));
         m_tabla->setItem(r, ColDorsal, num);
-        auto *nombre = fijo(j.nombreCorto);
+        auto *nombre = fijo(j.lesionado ? QString("%1  ✚ lesionado").arg(j.nombreCorto)
+                                        : j.nombreCorto);
         nombre->setToolTip(j.nombreLargo);
+        if (j.lesionado) nombre->setForeground(QColor(0xe0, 0x5a, 0x4a));
         m_tabla->setItem(r, ColNombre, nombre);
         m_tabla->setItem(r, ColPos, fijo(j.posicion >= 0 && j.posicion < 4 ? POS[j.posicion] : "?"));
         for (int k = 0; k < 4; k++)
@@ -266,4 +291,100 @@ void DialogPartida::reject()
                               QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
         return;
     QDialog::reject();
+}
+
+int DialogPartida::jugadorSeleccionado() const
+{
+    const int r = m_tabla->currentRow();
+    if (r < 0 || !m_tabla->item(r, ColDorsal)) return -1;
+    return m_tabla->item(r, ColDorsal)->data(Qt::UserRole).toInt();
+}
+
+void DialogPartida::renombrar()
+{
+    const int j = jugadorSeleccionado();
+    if (m_actual < 0 || j < 0)
+    {
+        QMessageBox::information(this, "Partida", "Selecciona primero un jugador.");
+        return;
+    }
+    recogerTabla();
+    const auto &jug = m_p.equipos()[m_actual].jugadores[j];
+    QDialog d(this);
+    d.setWindowTitle("Cambiar nombre");
+    QFormLayout *f = new QFormLayout(&d);
+    QLineEdit *corto = new QLineEdit(jug.nombreCorto, &d);
+    corto->setMaxLength(16);
+    QLineEdit *largo = new QLineEdit(jug.nombreLargo, &d);
+    largo->setMaxLength(40);
+    f->addRow("Nombre corto (el de las listas):", corto);
+    f->addRow("Nombre largo:", largo);
+    QDialogButtonBox *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    f->addRow(bb);
+    if (d.exec() != QDialog::Accepted) return;
+    if (corto->text() == jug.nombreCorto && largo->text() == jug.nombreLargo) return;
+    QString err;
+    if (!m_p.renombrarJugador(m_actual, j, corto->text(), largo->text(), &err))
+    {
+        QMessageBox::warning(this, "Cambiar nombre", err);
+        return;
+    }
+    mostrarEquipo(m_actual);
+}
+
+void DialogPartida::traspasar()
+{
+    const int j = jugadorSeleccionado();
+    if (m_actual < 0 || j < 0)
+    {
+        QMessageBox::information(this, "Partida", "Selecciona primero un jugador.");
+        return;
+    }
+    recogerTabla();
+    QStringList nombres;
+    QList<int> indices;
+    for (int k = 0; k < m_p.equipos().size(); k++)
+    {
+        const auto &e = m_p.equipos()[k];
+        if (k == m_actual || e.id == 9900) continue;
+        nombres << QString("%1 (%2 jugadores)").arg(e.nombreCorto).arg(e.jugadores.size());
+        indices << k;
+    }
+    bool ok = false;
+    const QString jug = m_p.equipos()[m_actual].jugadores[j].nombreCorto;
+    const QString elegido = QInputDialog::getItem(this, "Traspasar", "Traspasar a " + jug + " a:",
+                                                  nombres, 0, false, &ok);
+    if (!ok) return;
+    const int destino = indices.value(nombres.indexOf(elegido), -1);
+    QString info, err;
+    if (!m_p.traspasar(m_actual, j, destino, &info, &err))
+    {
+        QMessageBox::warning(this, "Traspasar", err);
+        return;
+    }
+    mostrarEquipo(m_actual);
+    QMessageBox::information(this, "Traspasar", info + ".\n\nSe guarda al pulsar «Guardar partida».");
+}
+
+void DialogPartida::quitarBajas(bool todos)
+{
+    if (m_actual < 0) return;
+    recogerTabla();
+    if (todos)
+    {
+        for (int i = 0; i < m_p.equipos()[m_actual].jugadores.size(); i++) m_p.quitarBajas(m_actual, i);
+    }
+    else
+    {
+        const int j = jugadorSeleccionado();
+        if (j < 0)
+        {
+            QMessageBox::information(this, "Partida", "Selecciona primero un jugador.");
+            return;
+        }
+        m_p.quitarBajas(m_actual, j);
+    }
+    mostrarEquipo(m_actual);
 }

@@ -37,8 +37,18 @@ public:
         int media[4] = {0, 0, 0, 0};   // VE, RE, AG, CA
         int energia = 0;
         double valor = 0;
+        int aptitud[4] = {0, 0, 0, 0}; // técnica, remate, pase, tiro (0/1)
+        // Bajas: 5 competiciones × [Incidencias, JornIncid, NJornIncid,
+        // NAmarillas] (nombres de PCMANAG.DAT). Tipo 1 = lesión.
+        bool lesionado = false;
+        int jornadasBaja = 0;
+        int offIncidencias = -1;
+        bool extranjero = false;
         // posiciones en el fichero
         int offMedias = -1, offEnergia = -1, offValor = -1;
+        int inicio = -1, fin = -1;     // registro completo (sin la marca 2)
+        // u16 equipo de procedencia, u16 equipo actual, 7 bytes de datos
+        int offEquipo = -1, offEquipo2 = -1, offDatos = -1;
     };
     struct Equipo
     {
@@ -51,6 +61,7 @@ public:
         bool tieneTactica = false;
         QList<Jugador> jugadores;
         int offCaja = -1, offEntrenamiento = -1, offTactica = -1;
+        int inicio = -1, fin = -1;     // registro del equipo (sin la marca 1)
     };
 
     bool cargar(const QString &ruta, QString *error);
@@ -71,6 +82,23 @@ public:
     void aplicar();
     bool cambiada() const;
 
+    // --- Cambios que cambian el tamaño del fichero (se reescribe entero) ---
+    // Nombre corto y largo de un jugador. Solo letras de Latin-1, sin
+    // caracteres de control, hasta 255. Devuelve false y *error si no.
+    bool renombrarJugador(int equipo, int jugador, const QString &corto, const QString &largo, QString *error);
+    // Mueve un jugador a otro equipo (como un fichaje del juego: procedencia =
+    // origen, equipo actual = destino), lo pone el último de
+    // la alineación del destino (renumera la del origen), le da un dorsal
+    // libre si el suyo está ocupado y actualiza el número de jugadores de
+    // los dos equipos y su copia en la lista de traspasos si la tiene.
+    // *info describe lo hecho.
+    bool traspasar(int origen, int jugador, int destino, QString *info, QString *error);
+    // Deja al jugador sin lesión, sin sanción y sin amarillas acumuladas en
+    // las 5 competiciones (también su copia en la lista de traspasos).
+    void quitarBajas(int equipo, int jugador);
+    static const int MIN_PLANTILLA = 16;   // mínimo de los DBC originales
+    static const int MAX_PLANTILLA = 33;   // máximo en las partidas y los DBC
+
     // Límites de los campos que se pueden editar
     static const int MAX_MEDIA = 99;
     static const int MAX_ENERGIA = 99;
@@ -84,6 +112,12 @@ public:
     static bool entrenamientoValido(const int e[3]);
 
 private:
+    // Rehace el fichero con un registro de jugador cambiado de sitio o de tamaño
+    bool reconstruir(const QList<QList<QByteArray>> &jugadores, const QList<QByteArray> &cabeceras,
+                     QString *error);
+    struct CopiaTraspaso { quint16 puntero; int equipo; int offEquipo, offEquipo2, offIncidencias; };
+    QList<CopiaTraspaso> m_copias;
+    int m_inicioEquipos = -1, m_inicioCola = -1;
     QByteArray m_datos, m_original;
     QString m_jugador, m_fecha;
     int m_jornada = 0, m_tipo = 0;
