@@ -1,0 +1,7 @@
+Decodificadores de audio usados por el conversor de sonidos (pcfutbol_audio.cpp).
+Se incluyen sin modificar; todos son de dominio público (o MIT-0 / MIT, a elegir).
+
+  dr_wav.h   v0.14.6  https://github.com/mackron/dr_libs  commit dfe8377631000664666519fdb83da193fd8037f4
+  dr_mp3.h   v0.7.4   (mismo commit)
+  dr_flac.h  v0.13.4  (mismo commit)
+  stb_vorbis.c v1.22  https://github.com/nothings/stb     commit 2c980bb59875b0d32144a71867fbdebb2f77cd20

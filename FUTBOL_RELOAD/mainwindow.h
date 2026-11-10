@@ -63,6 +63,7 @@ private slots:
     void importarImagenes();
     void exportarSonidos();
     void importarSonidos();
+    void abrirSonidos();
 
 private:
     Ui::MainWindow *ui;

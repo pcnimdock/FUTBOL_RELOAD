@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include "dialog_sonidos.h"
+#include "pcfutbol_audio.h"
 #include "util_ventanas.h"
 #include "dialog_ligas.h"
 #include "dialog_traspasos.h"
@@ -77,12 +79,16 @@ MainWindow::MainWindow(QWidget *parent)
     QPushButton *btnImportarSon = new QPushButton(QIcon(":/icons/import.svg"), "Importar sonidos", this);
     btnExportarSon->setObjectName("btnExportarSonidos");
     btnImportarSon->setObjectName("btnImportarSonidos");
+    QPushButton *btnSonidos = new QPushButton(QIcon(":/icons/import.svg"), "Sonidos del partido…", this);
+    btnSonidos->setObjectName("btnSonidosPartido");
+    btnSonidos->setToolTip("Sustituir sonidos por cualquier audio (WAV, MP3, OGG, FLAC…) convertido para el juego");
 
     QHBoxLayout *layoutBotonesImagenes = new QHBoxLayout();
     layoutBotonesImagenes->addWidget(btnExportar);
     layoutBotonesImagenes->addWidget(btnImportar);
     layoutBotonesImagenes->addWidget(btnExportarSon);
     layoutBotonesImagenes->addWidget(btnImportarSon);
+    layoutBotonesImagenes->addWidget(btnSonidos);
 
     // --- Composición de ligas (qué equipos juegan en Primera/Segunda) ---
     QPushButton *btnLigas = new QPushButton("Composición de ligas", this);
@@ -144,6 +150,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(btnImportar, &QPushButton::clicked, this, &MainWindow::importarImagenes);
     connect(btnExportarSon, &QPushButton::clicked, this, &MainWindow::exportarSonidos);
     connect(btnImportarSon, &QPushButton::clicked, this, &MainWindow::importarSonidos);
+    connect(btnSonidos, &QPushButton::clicked, this, &MainWindow::abrirSonidos);
 
     // Imagen de "casilla vacía" cacheada: antes se recargaba del recurso
     // en cada refresco de la rejilla de equipos.
@@ -1267,6 +1274,24 @@ void MainWindow::exportarSonidos()
     QMessageBox::information(this, "Exportación de sonidos", resumen);
 }
 
+void MainWindow::abrirSonidos()
+{
+    QString carpetaJuego = rutaJuegoActual();
+    if (carpetaJuego.isEmpty() || PCFutbolAudio::carpetaSonidos(carpetaJuego).isEmpty())
+    {
+        carpetaJuego = QFileDialog::getExistingDirectory(
+            this, "Selecciona la carpeta del juego (la que contiene SONIDOS)");
+        if (carpetaJuego.isEmpty()) return;
+    }
+    DialogSonidos d(carpetaJuego, this);
+    if (!d.valido())
+    {
+        QMessageBox::warning(this, "Sonidos", "No hay carpeta SONIDOS en:\n" + carpetaJuego);
+        return;
+    }
+    d.exec();
+}
+
 void MainWindow::importarSonidos()
 {
     QString carpetaJuego = QFileDialog::getExistingDirectory(
@@ -1280,7 +1305,7 @@ void MainWindow::importarSonidos()
         return;
 
     QString carpetaSonidos = QFileDialog::getExistingDirectory(
-        this, "Selecciona la carpeta que contiene la subcarpeta SONIDOS con los WAV");
+        this, "Selecciona la carpeta con los audios (o su subcarpeta SONIDOS): GOL.wav, FONDO.mp3, …");
     if (carpetaSonidos.isEmpty()) return;
 
     setCursor(Qt::WaitCursor);
@@ -1289,6 +1314,8 @@ void MainWindow::importarSonidos()
     unsetCursor();
 
     QString resumen = QString("Sonidos reinyectados: %1").arg(r.sonidosImportados);
+    if (!r.detalles.isEmpty())
+        resumen += "\n\n" + r.detalles.join("\n");
     if (!r.errores.isEmpty())
         resumen += "\n\nAvisos:\n" + r.errores.join("\n");
 

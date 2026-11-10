@@ -59,9 +59,10 @@
  *   demasiado agudo.
  *
  *   Al exportar se envuelven en un WAV (sin tocar las muestras). Al importar
- *   se acepta cualquier WAV PCM (8 o 16 bits, mono o estéreo, cualquier
- *   frecuencia): se pasa a mono, se remuestrea a 11.025 Hz y se guarda a 8
- *   bits sin signo.
+ *   se acepta WAV, AIFF, MP3, OGG o FLAC con el nombre del sonido (GOL.mp3…)
+ *   y se convierte con PCFutbolAudio (pcfutbol_audio.h): mono, 11.025 Hz,
+ *   8 bits, filtrado y con el volumen del original. Un WAV que ya está en el
+ *   formato del juego (p. ej. uno exportado y sin tocar) se copia tal cual.
  */
 
 #include <QString>
@@ -84,6 +85,7 @@ public:
         int textosImportados = 0;
         int sonidosExportados = 0;   // SONIDOS/*.RAW
         int sonidosImportados = 0;
+        QStringList detalles;        // qué se ha hecho con cada sonido convertido
         QStringList errores;
     };
 

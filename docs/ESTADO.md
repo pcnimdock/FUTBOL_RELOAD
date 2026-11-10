@@ -218,6 +218,28 @@ Reglas:
   es obligatoria.
 - Detalle en `docs/plantillas-y-csv.md`.
 
+### 4.11 Sonidos del partido — `SONIDOS/*.RAW` (del ejecutable; falta probar en un partido)
+
+- Los usa `PCMANAG.DAT` (en 4.0 y 4.5 son los mismos 25 ficheros, idénticos).
+  Función de carga en `0x63d90`; la llamada a los 25, en `0x6420c`, sólo si
+  los efectos están activados.
+- Cada fichero se carga entero en memoria:
+  `malloc((tamaño + 7) & ~3)` y luego `fread`. En la cabecera del búfer guarda
+  `leído & ~3`: **sólo usa múltiplos de 4 bytes**.
+- **Si falta un fichero**, sale con «No se encontro el fichero %s».
+  **Si no hay memoria**, sale con «No se pudo alocar la memoria para el sonido %s».
+- No hay más límite de tamaño. La mezcla es por software (canales de 0x20
+  bytes) y lee las muestras de ese búfer.
+- Formato: 8 bits sin signo, mono, 11.025 Hz (ver `pcfutbol_extras.h`).
+- Volumen medio (RMS, de 0 a 128) de los originales:
+  - ambientes muy bajos: FONDO 5,8, CANTICO2 8,3, CANTICO3 13,5;
+  - golpes altos: BALONAZO 51, POSTE 47, SILBATO 41.
+
+  Se mezclan a la vez, así que un audio nuevo se iguala por defecto al
+  volumen del original.
+- Los 25 originales suman 844.259 bytes. El editor avisa por encima de 3 MB,
+  porque no está probado.
+
 ---
 
 ## 5. Hecho en el editor (rama `mejoras-equipaciones`)
@@ -226,6 +248,7 @@ Commits principales, del más reciente al más antiguo:
 
 | Commit | Qué |
 |---|---|
+| (10/11/2026) | Ventana «Sonidos del partido» y conversor de audio (`pcfutbol_audio.*`, `dialog_sonidos.*`). Acepta WAV de cualquier tipo, AIFF, MP3, OGG y FLAC (decodificadores de dominio público en `thirdparty/`), o ffmpeg si está instalado. Filtra antes de pasar a 11.025 Hz, iguala el volumen al original y avisa si falta algún sonido. «Importar sonidos» usa el mismo conversor |
 | (9/11/2026, tarde) | Traspasos, CSV, «Comprobar plantillas», «Restaurar originales», temporada real (`JORNAD`), textos largos sin estropear, detección de la 4.5, varios errores del editor original. Ver `docs/plantillas-y-csv.md` |
 | `44c1dbf` | Ligas: probado un equipo sin ficha en Primera |
 | `83da4b0` | Ligas: no modificar `PCFUTBOL.DAT` (rompía el juego); ofrece restaurarlo |

@@ -1,4 +1,5 @@
 #include "pcfutbol_extras.h"
+#include "pcfutbol_audio.h"
 
 #include <QFile>
 #include <QDir>
@@ -861,104 +862,13 @@ QByteArray PCFutbolExtras::rawAWav(const QByteArray &raw, int frecuencia)
 
 QByteArray PCFutbolExtras::wavARaw(const QByteArray &wav, QString *error)
 {
-    QByteArray vacio;
-    if (wav.size() < 44 || wav.left(4) != "RIFF" || wav.mid(8, 4) != "WAVE")
-    {
-        if (error) *error = "no es un WAV";
-        return vacio;
-    }
-
-    int formato = 0, canales = 0, bits = 0, frecuencia = 0;
-    int datosOff = -1, datosLen = 0;
-
-    int pos = 12;
-    while (pos + 8 <= wav.size())
-    {
-        const QByteArray id = wav.mid(pos, 4);
-        const quint32 tam = static_cast<quint8>(wav.at(pos + 4)) |
-                            (static_cast<quint8>(wav.at(pos + 5)) << 8) |
-                            (static_cast<quint8>(wav.at(pos + 6)) << 16) |
-                            (static_cast<quint32>(static_cast<quint8>(wav.at(pos + 7))) << 24);
-        if (id == "fmt " && pos + 8 + 16 <= wav.size())
-        {
-            formato    = leerU16(wav, pos + 8);
-            canales    = leerU16(wav, pos + 10);
-            frecuencia = leerU16(wav, pos + 12) | (leerU16(wav, pos + 14) << 16);
-            bits       = leerU16(wav, pos + 22);
-        }
-        else if (id == "data")
-        {
-            datosOff = pos + 8;
-            datosLen = qMin<int>(tam, wav.size() - datosOff);
-        }
-        pos += 8 + tam + (tam % 2);
-    }
-
-    if (formato != 1 || datosOff < 0 || canales < 1 || frecuencia < 1)
-    {
-        if (error) *error = "solo se admite WAV PCM sin comprimir";
-        return vacio;
-    }
-    if (bits != 8 && bits != 16)
-    {
-        if (error) *error = "solo se admite WAV de 8 o 16 bits";
-        return vacio;
-    }
-
-    // 1) a mono, en flotante centrado en 0
-    const int anchoMuestra = (bits / 8) * canales;
-    const int nMuestras = datosLen / anchoMuestra;
-    QVector<float> mono(nMuestras, 0.0f);
-
-    for (int i = 0; i < nMuestras; i++)
-    {
-        float suma = 0.0f;
-        for (int c = 0; c < canales; c++)
-        {
-            const int o = datosOff + i * anchoMuestra + c * (bits / 8);
-            if (bits == 8)
-            {
-                suma += static_cast<int>(static_cast<quint8>(wav.at(o))) - 128;
-            }
-            else
-            {
-                const qint16 v = static_cast<qint16>(leerU16(wav, o));
-                suma += v / 256.0f;   // 16 bits -> escala de 8 bits
-            }
-        }
-        mono[i] = suma / canales;
-    }
-
-    if (nMuestras < 1)
-    {
-        if (error) *error = "el WAV no tiene muestras";
-        return vacio;
-    }
-
-    // 2) remuestreo lineal a 11.025 Hz
-    const int destino = (frecuencia == FRECUENCIA_RAW)
-                            ? nMuestras
-                            : static_cast<int>(qint64(nMuestras) * FRECUENCIA_RAW / frecuencia);
-    QByteArray raw(destino, char(0x80));
-
-    for (int i = 0; i < destino; i++)
-    {
-        float m;
-        if (frecuencia == FRECUENCIA_RAW)
-        {
-            m = mono.at(i);
-        }
-        else
-        {
-            const float src = static_cast<float>(i) * frecuencia / FRECUENCIA_RAW;
-            const int i0 = static_cast<int>(src);
-            const int i1 = qMin(i0 + 1, nMuestras - 1);
-            const float t = src - i0;
-            m = mono.at(qBound(0, i0, nMuestras - 1)) * (1.0f - t) + mono.at(i1) * t;
-        }
-        raw[i] = static_cast<char>(static_cast<quint8>(qBound(0, qRound(m) + 128, 255)));
-    }
-    return raw;
+    PCFutbolAudio::Audio a;
+    if (!PCFutbolAudio::decodificarDatos(wav, &a, error)) return QByteArray();
+    PCFutbolAudio::Opciones op;
+    op.volumen = PCFutbolAudio::VolumenSinCambio;
+    op.recortarSilencio = false;
+    op.fundidos = false;
+    return PCFutbolAudio::convertir(a, op);
 }
 
 void PCFutbolExtras::exportarSonidos(const QString &carpetaJuego, const QString &carpetaSalida,
@@ -1002,51 +912,70 @@ void PCFutbolExtras::exportarSonidos(const QString &carpetaJuego, const QString 
 void PCFutbolExtras::importarSonidos(const QString &carpetaNueva, const QString &carpetaSonidos,
                                      Resultado &r)
 {
+    using namespace PCFutbolAudio;
+    // Los audios pueden estar en <carpeta>/SONIDOS o directamente en <carpeta>
+    QStringList origenes;
+    const QString sub = PCFutbolAudio::carpetaSonidos(carpetaSonidos);
+    if (!sub.isEmpty()) origenes << sub;
+    origenes << carpetaSonidos;
+    static const QStringList extensiones = {"wav", "wave", "mp3", "ogg", "oga", "flac", "aif", "aiff",
+                                            "aifc", "m4a", "aac", "wma", "opus"};
+
     QDirIterator it(carpetaNueva, QStringList() << "*.RAW", QDir::Files,
                     QDirIterator::Subdirectories);
     while (it.hasNext())
     {
         const QString ruta = it.next();
         const QString nombre = QFileInfo(ruta).completeBaseName();
-        const QString wavPath = QString("%1/SONIDOS/%2.wav").arg(carpetaSonidos, nombre);
-        if (!QFile::exists(wavPath)) continue;
 
-        QFile fw(wavPath);
-        if (!fw.open(QIODevice::ReadOnly)) continue;
-        const QByteArray wav = fw.readAll();
-        fw.close();
-
-        QString err;
-        const QByteArray raw = wavARaw(wav, &err);
-        if (raw.isEmpty())
+        QString audio;
+        for (const QString &o : origenes)
         {
-            r.errores << QString("%1.wav: %2").arg(nombre, err);
+            for (const QFileInfo &fi : QDir(o).entryInfoList(QDir::Files))
+                if (fi.completeBaseName().compare(nombre, Qt::CaseInsensitive) == 0 &&
+                    extensiones.contains(fi.suffix().toLower()))
+                {
+                    audio = fi.absoluteFilePath();
+                    break;
+                }
+            if (!audio.isEmpty()) break;
+        }
+        if (audio.isEmpty()) continue;
+
+        Audio a;
+        QString err;
+        if (!decodificar(audio, &a, &err))
+        {
+            r.errores << QString("%1: %2").arg(QFileInfo(audio).fileName(), err);
             continue;
         }
+        Opciones op;
+        op.rmsReferencia = rms(leerOriginal(ruta));
+        Informe inf;
+        const QByteArray raw = convertir(a, op, &inf);
 
-        // Si el original no ha cambiado, no reescribimos nada.
         QFile fo(ruta);
         if (fo.open(QIODevice::ReadOnly))
         {
             const QByteArray original = fo.readAll();
             fo.close();
-            if (original == raw) continue;
+            if (original == raw) continue;          // no ha cambiado
         }
-
-        // Copia del original la primera vez (la usa «Restaurar originales»)
-        if (!QFile::exists(ruta + ".bak") && !QFile::copy(ruta, ruta + ".bak"))
+        if (!escribirRaw(ruta, raw, &err))
         {
-            r.errores << "No se pudo crear la copia " + nombre + ".RAW.bak";
+            r.errores << err;
             continue;
         }
-        QFile out(ruta);
-        if (!out.open(QIODevice::WriteOnly))
-        {
-            r.errores << "No se pudo reescribir " + nombre + ".RAW";
-            continue;
-        }
-        out.write(raw);
-        out.close();
         r.sonidosImportados++;
+        QString d = inf.copiaExacta
+            ? QString("%1: copiado tal cual (ya estaba en el formato del juego)").arg(nombre)
+            : QString("%1: %2, %3 s → %4 s, volumen %5%6 dB")
+                  .arg(nombre, a.formato)
+                  .arg(inf.duracionEntrada, 0, 'f', 1).arg(inf.duracionSalida, 0, 'f', 1)
+                  .arg(inf.gananciaDb >= 0 ? "+" : "").arg(inf.gananciaDb, 0, 'f', 1);
+        if (!inf.avisos.isEmpty()) d += " — " + inf.avisos.join(" ");
+        r.detalles << d;
     }
+    const QString destino = PCFutbolAudio::carpetaSonidos(carpetaNueva);
+    if (!destino.isEmpty()) r.errores << comprobar(destino).avisos;
 }
