@@ -29,6 +29,7 @@ public:
     void setRutaJuego(const QString &ruta);
     // Jugadores de la temporada real: no se pueden quitar de la plantilla
     void setTemporadaReal(const PCFutbolTemporadaReal *real) { m_real = real; }
+    void editarTactica();
      EQUIPO eq;
      TRANSFORM_MINIFOTO trans;
 

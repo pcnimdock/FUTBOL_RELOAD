@@ -24,13 +24,26 @@ enteros de 32 bits.
 
 | Valores | Significado |
 |---|---|
-| 0–3 | Desconocidos. Vienen de la formación (también están en las 6 predefinidas de `PCMANAG.DAT`, a partir de `0xA4FD0`, de `0x160` bytes cada una). Rangos vistos: 0–10, 0–6, 0–15, 0–7. Conservar tal cual. |
+| 0–3 | **Zona** del jugador: x, y, ancho, alto (rectángulo de la cuadrícula). Es la zona que el juego resalta al seleccionar un jugador en «Ver rival». En los 5.181 jugadores de los DBC de 4.0 y 4.5, la posición de defensa y la de ataque caen siempre dentro de la zona, y la zona dentro del campo. |
 | 4–5 | Posición al **defender** (círculo en pantalla): columna, fila |
 | 6–7 | Posición al **atacar** (flecha): columna, fila |
 
 - Cuadrícula de 15 × 9: columna 0 = propia portería, columna 14 = la
   contraria; fila 0 = arriba, fila 8 = abajo.
-- El portero es siempre `0,3,2,3, 0,4, 0,4` en los 236 DBC.
+- El portero es siempre `0,3,2,3, 0,4, 0,4` en los 236 DBC: zona de 2×3
+  desde (0,3), y defensa y ataque en (0,4).
+- Las 6 formaciones de los botones del juego (3-4-3, 3-5-2, 4-3-3, 4-4-2,
+  5-3-2, 5-4-1) están en `PCMANAG.DAT` desde `0xA4FD0`, 6 × 0x160 bytes
+  (11 × 8 int32). La 4-4-2 que graba el juego es idéntica a la tabla.
+
+**Editor:** la ficha del equipo tiene el botón «Táctica…» (`dialog_tactica.*`,
+`pcfutbol_tactica.*`). Comprobado en el juego el 10/11/2026:
+
+- Se cambió con el editor la táctica del Real Madrid (5-3-2 con el 9 movido)
+  y se empezó una liga nueva. «Ver rival» dibujaba las posiciones nuevas (en
+  espejo, porque el rival ataca hacia la izquierda).
+- Un `TACTIC.nnn` grabado por el editor aparece en «Cargar táctica» con su
+  nombre y su autor, y se carga bien.
 
 **En el DBC** el bloque son los primeros 176 bytes de lo que el editor llama
 `cosas_bbdd`, justo después de `nombre_corto_mayusculas`. Lo tienen los 236
@@ -106,6 +119,5 @@ partida guardada, no de los DBC.** Por tanto:
 - Identificar los campos del estado del jugador (los valores en coma
   flotante, los contadores) y el bloque de dinero/caja del equipo del
   jugador. El método es grabar, cambiar una sola cosa en el juego y comparar.
-- Los 4 primeros valores de cada jugador en la táctica.
 - Promanager: `PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`, por probar.
 - Ficheros de muestra en `~/pcfutbol_trabajo/test3/partidas/` (fuera del repositorio).

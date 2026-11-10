@@ -11,6 +11,9 @@
 #include <QPalette>
 #include <QColor>
 #include <QPushButton>
+#include <QHBoxLayout>
+#include "dialog_tactica.h"
+#include "pcfutbol_plantillas.h"
 
 
 DialogEquipos::DialogEquipos(QWidget *parent) :
@@ -25,7 +28,14 @@ DialogEquipos::DialogEquipos(QWidget *parent) :
     // --- Botón para abrir el editor de equipación (camiseta) ---
     QPushButton *btnEquipacion = new QPushButton("Editar equipación", this);
     btnEquipacion->setObjectName("btnEditarEquipacion");
-    ui->gridLayout_2->addWidget(btnEquipacion, 1, 0, 1, 4);
+    QPushButton *btnTactica = new QPushButton("Táctica…", this);
+    btnTactica->setObjectName("btnEditarTactica");
+    btnTactica->setToolTip("Dónde se coloca cada titular: la táctica con la que empieza el equipo en una liga nueva");
+    QHBoxLayout *filaBotones = new QHBoxLayout();
+    filaBotones->addWidget(btnEquipacion);
+    filaBotones->addWidget(btnTactica);
+    ui->gridLayout_2->addLayout(filaBotones, 1, 0, 1, 4);
+    connect(btnTactica, &QPushButton::clicked, this, &DialogEquipos::editarTactica);
     connect(btnEquipacion, &QPushButton::clicked, this, [this]() {
         DialogEquipacion dlgEquipacion(this);
         if(!rutaJuego.isEmpty())
@@ -346,4 +356,33 @@ void DialogEquipos::on_btn_menos_jugador_clicked()
     for (const JUGADOR &j : eq.lista_jugadores) sigueUsado |= j.puntero == puntero_jugador;
     if (!sigueUsado) punteros.removeOne(puntero_jugador);
     update_model();
+}
+
+void DialogEquipos::editarTactica()
+{
+    PCFutbolTactica::Tactica t;
+    if (!PCFutbolTactica::leer(eq.cosas_bbdd, &t))
+    {
+        QMessageBox::information(this, "Táctica",
+            "Este equipo no tiene táctica en su ficha (o no se reconoce).");
+        return;
+    }
+    // Los 11 titulares en orden de alineación: el jugador k de la táctica es
+    // el que ocupa el puesto k
+    QList<int> orden;
+    for (int i = 0; i < eq.lista_jugadores.size(); i++) orden << i;
+    std::stable_sort(orden.begin(), orden.end(), [this](int a, int b) {
+        return eq.lista_jugadores.at(a).PosicionEnAlineacion < eq.lista_jugadores.at(b).PosicionEnAlineacion;
+    });
+    const QStringList pos = PCFutbolPlantillas::nombresPosicion();
+    QStringList nombres;
+    for (int i = 0; i < orden.size() && i < PCFutbolTactica::JUGADORES; i++)
+    {
+        const JUGADOR &j = eq.lista_jugadores.at(orden[i]);
+        nombres << QString("%1 · %2").arg(j.NombreCorto,
+                                          j.PosicionEnCampo < pos.size() ? pos.at(j.PosicionEnCampo) : QString("?"));
+    }
+    DialogTactica d(t, nombres, eq.NombreCorto, rutaJuego, this);
+    if (d.exec() == QDialog::Accepted && d.tactica() != t)
+        PCFutbolTactica::escribir(eq.cosas_bbdd, d.tactica());
 }
