@@ -635,10 +635,13 @@ Estado comprobar(const QString &carpeta)
                          ": el partido se para con «No se encontro el fichero».");
     if (!e.vacios.isEmpty())
         e.avisos << "Demasiado cortos para sonar (menos de 4 bytes): " + e.vacios.join(", ");
-    if (e.total > TOTAL_AVISO)
-        e.avisos << QString("Los sonidos ocupan %1 KB (los originales, %2 KB). El juego los carga todos "
-                            "en memoria al empezar el partido: si no cabe, se para con «No se pudo alocar "
-                            "la memoria para el sonido». No se ha probado con tanto.")
+    if (e.total > TOTAL_LIMITE)
+        e.avisos << QString("Los sonidos ocupan %1 KB: casi seguro que NO caben. El juego los carga todos en "
+                            "memoria al empezar el partido; con 14 MB se para con «No se pudo alocar la "
+                            "memoria para el sonido». Acorta los más largos.").arg(e.total / 1024);
+    else if (e.total > TOTAL_AVISO)
+        e.avisos << QString("Los sonidos ocupan %1 KB (los originales, %2 KB). Está probado hasta 7,3 MB; "
+                            "con más puede faltar memoria en algún modo de juego.")
                         .arg(e.total / 1024).arg(TOTAL_ORIGINAL / 1024);
     return e;
 }

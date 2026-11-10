@@ -218,7 +218,7 @@ Reglas:
   es obligatoria.
 - Detalle en `docs/plantillas-y-csv.md`.
 
-### 4.11 Sonidos del partido — `SONIDOS/*.RAW` (del ejecutable; falta probar en un partido)
+### 4.11 Sonidos del partido — `SONIDOS/*.RAW` (verificado en el juego)
 
 - Los usa `PCMANAG.DAT` (en 4.0 y 4.5 son los mismos 25 ficheros, idénticos).
   Función de carga en `0x63d90`; la llamada a los 25, en `0x6420c`, sólo si
@@ -237,8 +237,22 @@ Reglas:
 
   Se mezclan a la vez, así que un audio nuevo se iguala por defecto al
   volumen del original.
-- Los 25 originales suman 844.259 bytes. El editor avisa por encima de 3 MB,
-  porque no está probado.
+- Los 25 originales suman 844.259 bytes.
+- Probado en un partido amistoso, con Efectos y Ambiente activados y DOSBox a
+  16 MB (lo mismo que trae el juego), grabando el audio con Ctrl+F6:
+  - Con FONDO cambiado por un tono de 1 kHz, la frecuencia dominante del
+    ambiente fue 1.007 Hz: se reproduce a ~11.025 Hz.
+  - Los golpes originales aparecen en la grabación con correlación de 0,97–0,98.
+  - Con 7,3 MB de sonidos (CANTICO3 de 10 min, GOL de 1 min) el partido
+    carga.
+  - Con 13,3 MB cargados aún entra; al pedir GOL (14,0 MB) se para con «No se
+    pudo alocar la memoria para el sonido sonidos\gol.raw».
+
+  El editor avisa por encima de 8 MB y advierte de que no cabe por encima de
+  12 MB.
+- Para probar, en la pantalla del amistoso los interruptores Efectos y
+  Ambiente se pulsan sobre el «OFF» y sólo en modo Interactivo (con Visionado
+  quedan atenuados).
 
 ---
 

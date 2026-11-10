@@ -230,10 +230,13 @@ void DialogSonidos::actualizarEstado()
     }
     QString t = QString("Ocupan %1 KB en total (los originales, %2 KB).")
                     .arg(total / 1024).arg(TOTAL_ORIGINAL / 1024);
-    if (total > TOTAL_AVISO)
-        t += QString(" <span style='color:#e0b34a'>⚠ Es mucho: el juego los carga todos en memoria al empezar "
-                     "el partido y, si no caben, se para («No se pudo alocar la memoria para el sonido»). "
-                     "Acorta los más largos (duración máxima).</span>");
+    if (total > TOTAL_LIMITE)
+        t += " <span style='color:#e05a4a'>⚠ No caben: el juego los carga todos en memoria al empezar el "
+             "partido y con 14 MB se para («No se pudo alocar la memoria para el sonido»). "
+             "Acorta los más largos (duración máxima).</span>";
+    else if (total > TOTAL_AVISO)
+        t += " <span style='color:#e0b34a'>⚠ Más de lo probado (7,3 MB): puede faltar memoria en algún "
+             "modo de juego. Mejor acortar los más largos.</span>";
     if (!faltan.isEmpty())
         t += QString(" <span style='color:#e05a4a'>⚠ Faltan %1: el partido no arrancará. "
                      "Usa «Volver al original» o sustitúyelos.</span>").arg(faltan.join(", "));
@@ -386,13 +389,20 @@ void DialogSonidos::guardar()
     }
     qint64 total = 0;
     for (const SonidoJuego &s : sonidosDelJuego()) total += rawActual(s.nombre).size();
-    if (total > TOTAL_AVISO &&
-        QMessageBox::question(this, "Sonidos",
-            QString("Los sonidos ocuparían %1 KB (los originales, %2 KB). El juego los carga todos al empezar "
-                    "cada partido; con tanto puede quedarse sin memoria y pararse. No está probado.\n\n"
-                    "¿Guardar igualmente?").arg(total / 1024).arg(TOTAL_ORIGINAL / 1024),
-            QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
-        return;
+    if (total > TOTAL_AVISO)
+    {
+        const bool limite = total > TOTAL_LIMITE;
+        QMessageBox m(limite ? QMessageBox::Warning : QMessageBox::Question, "Sonidos",
+            limite ? QString("Los sonidos ocuparían %1 KB. El juego los carga todos al empezar cada partido y "
+                             "con 14 MB se para con «No se pudo alocar la memoria para el sonido» (probado).\n\n"
+                             "Acorta los más largos con «Duración máxima». ¿Guardar igualmente?").arg(total / 1024)
+                   : QString("Los sonidos ocuparían %1 KB (los originales, %2 KB). Está probado hasta 7,3 MB; "
+                             "con más puede faltar memoria en algún modo de juego.\n\n¿Guardar igualmente?")
+                         .arg(total / 1024).arg(TOTAL_ORIGINAL / 1024),
+            QMessageBox::Yes | QMessageBox::No, this);
+        m.setDefaultButton(limite ? QMessageBox::No : QMessageBox::Yes);
+        if (m.exec() != QMessageBox::Yes) return;
+    }
 
     QStringList errores;
     for (auto it = m_pendientes.cbegin(); it != m_pendientes.cend(); ++it)

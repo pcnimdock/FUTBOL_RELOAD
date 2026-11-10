@@ -113,11 +113,15 @@ namespace PCFutbolAudio
         QStringList avisos;
     };
     Estado comprobar(const QString &carpetaSonidos);
-    // Total de los 25 originales (844.259 bytes); más de esto no está probado
+    // Total de los 25 originales (844.259 bytes)
     const qint64 TOTAL_ORIGINAL = 844259;
-    // Aviso a partir de aquí: el juego pide 2.972 KB de XMS libre y necesita
-    // espacio para todo lo demás; no se ha probado más allá.
-    const qint64 TOTAL_AVISO = 3 * 1024 * 1024;
+    // Probado en un partido amistoso con DOSBox a 16 MB (lo que trae el juego):
+    //   7,3 MB  -> el partido carga y suenan bien;
+    //  13,3 MB  -> se cargan; 14,0 MB -> «No se pudo alocar la memoria para
+    //              el sonido sonidos\gol.raw» y el juego se para.
+    // Otros modos (Liga Manager…) pueden necesitar más memoria para lo demás.
+    const qint64 TOTAL_AVISO = 8 * 1024 * 1024;     // más de lo probado
+    const qint64 TOTAL_LIMITE = 12 * 1024 * 1024;   // casi seguro que no cabe
 }
 
 #endif // PCFUTBOL_AUDIO_H
