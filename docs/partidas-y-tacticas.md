@@ -101,6 +101,79 @@ Después de la jornada 1, `LIGA.1` tenía los resultados en el calendario, la
 jornada en la cabecera y 1.028 bytes más (zona de copas y estadísticas, y el
 bloque final).
 
+### Formato completo (`PCMANAG.DAT`, verificado leyendo dos partidas enteras)
+
+Tras la cabecera (ver tabla), lo que escribe `0x101e0`:
+
+1. 70 bytes de copyright y 8 bytes de estado.
+2. Calendarios: Primera, 45 × 11 × 4 bytes; Segunda, 38 × 10 × 4 bytes.
+3. Copas. Cada cruce ocupa 10 bytes: 2 × u16 y 6 × u8.
+   - Copa del Rey: 7 u16, la marca `1`, y 15 + 77 cruces.
+   - Copa de Europa: 15 u16, la marca `2`, y 31 cruces.
+   - Recopa: 23 u16, la marca `3`, y 63 cruces.
+   - UEFA: 6 u16, la marca `4`, y 7 + 48 cruces.
+4. La marca `5` y 19 u16.
+5. Lista de traspasos: `0`, u16, double, u16, double y un jugador, repetido hasta
+   `FFFF`.
+6. Orden de los equipos: 22 + 20 u16.
+7. Equipos: `1` + equipo, y `2` + jugador por cada jugador. Son 42 equipos más
+   el 9900 (jugadores sueltos, «SEGUNDA B»), y la lista termina en `0`.
+8. Cola: goleadores (`0x3a4c4`), una lista de registros y los 20 mánagers
+   humanos. El editor la conserva tal cual.
+
+**Equipo** (`0x24c07`). Los textos llevan un byte de longitud y van con XOR 0x61.
+
+- Cuatro textos: nombre largo, nombre corto, mayúsculas y estadio.
+- Entrenador: u16, texto y 2 × u32.
+- 2 u16, el id (`EQ9500nn`), 4 u16 y un u32. Uno de esos u16 es el puesto en la
+  clasificación.
+- Nombre de la táctica y la táctica (176 bytes).
+- **Entrenamiento**: 3 u16 (defensa, medio, delantera) y 2 u16 más (el último
+  es el número de jugadores).
+- 24 double: [0] presupuesto, **[1] caja**, [2] ¿?, [6] 100.000,
+  [7] 2.500, y [13] y [14] la taquilla y las vallas del último partido en casa.
+- 6 u16, 11 u16 (sin identificar; no son la alineación) y 2 u16.
+
+**Jugador** (`0x322e1`):
+
+- puntero, nombre corto y nombre largo;
+- u16 equipo (si es 9900, otro texto) y otro u16;
+- 7 u8: posición (0 POR … 3 DEL), demarcación, …, dorsal y **puesto en la
+  alineación**;
+- 20 u8 de estadísticas por competición (con restos de memoria sin inicializar;
+  el editor no los toca);
+- 2 u8;
+- **double: precio** (la columna PRECIO de «Vender»);
+- **4 u8: VE, RE, AG, CA**;
+- 4 u8 (0 o 1; ¿lesión, sanción…?);
+- **u8: energía (EN)**. La media ME la calcula el juego.
+
+### Reglas del entrenamiento (importante)
+
+El código de las flechas (`0x4c6b7`) solo deja cada barra entre **12 y 43**, y
+subir solo si la suma × 3,2 < 240, es decir, **como mucho 75 entre las tres**.
+Todos los equipos empiezan en 25/25/25, así que en el juego solo se puede
+redistribuir. Con 50/0/10 el juego **se cuelga al abrir Tácticas** (probado).
+Además, el cuelgue borra `COMFILE.DAT` y el juego ya no arranca hasta reponerlo.
+
+### Editor de partidas (botón «Partida guardada…»)
+
+`pcfutbol_partida.*` y `dialog_partida.*`. Solo cambia valores en su sitio: el
+fichero no cambia de tamaño y, antes de escribir, se comprueba que se puede
+volver a leer. La primera vez deja copia `.bak`. Se puede cambiar:
+
+- de cada equipo: la caja, el entrenamiento (con las reglas de arriba) y la
+  táctica;
+- de cada jugador: VE, RE, AG, CA, EN y precio.
+
+Comprobado en el juego el 10/11/2026:
+
+- la caja de 2.000 y de 3.000 millones aparece en «Caja»;
+- VE 99 y EN 50 de Buyo, y CA 99 de Hierro, aparecen en «Alineación»;
+- el precio de 123.456.789 aparece en «Vender» como «123 m.»;
+- la táctica 5-4-1 y el entrenamiento 30/20/25 aparecen en «Tácticas»;
+- después se jugó la jornada siguiente sin problemas.
+
 ### Consecuencia para el editor (comprobado en el juego)
 
 Se cambió «Buyo» por «Bayo» solo dentro de `LIGA.0` y se cargó la partida:
@@ -116,8 +189,10 @@ partida guardada, no de los DBC.** Por tanto:
 
 ## Pendiente
 
-- Identificar los campos del estado del jugador (los valores en coma
-  flotante, los contadores) y el bloque de dinero/caja del equipo del
-  jugador. El método es grabar, cambiar una sola cosa en el juego y comparar.
+- Identificar los campos que quedan: los otros double del equipo, las 4
+  marcas 0/1 del jugador (¿lesión, sanción?) y las estadísticas. El método es
+  grabar, cambiar una sola cosa en el juego y comparar.
+- Cambiar nombres o mover jugadores de equipo exige reescribir el fichero, no
+  solo cambiar valores. Ya se conoce el formato entero, pero no está hecho.
 - Promanager: `PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`, por probar.
 - Ficheros de muestra en `~/pcfutbol_trabajo/test3/partidas/` (fuera del repositorio).

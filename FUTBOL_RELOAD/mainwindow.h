@@ -64,6 +64,7 @@ private slots:
     void exportarSonidos();
     void importarSonidos();
     void abrirSonidos();
+    void abrirPartida();
 
 private:
     Ui::MainWindow *ui;

@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include "dialog_sonidos.h"
+#include "dialog_partida.h"
+#include "pcfutbol_tactica.h"
 #include "pcfutbol_audio.h"
 #include "util_ventanas.h"
 #include "dialog_ligas.h"
@@ -89,6 +91,11 @@ MainWindow::MainWindow(QWidget *parent)
     layoutBotonesImagenes->addWidget(btnExportarSon);
     layoutBotonesImagenes->addWidget(btnImportarSon);
     layoutBotonesImagenes->addWidget(btnSonidos);
+    QPushButton *btnPartida = new QPushButton(QIcon(":/icons/import.svg"), "Partida guardada…", this);
+    btnPartida->setObjectName("btnPartidaGuardada");
+    btnPartida->setToolTip("Editar una partida de Liga Manager en curso (TACTICS/LIGA.0 … LIGA.9)");
+    layoutBotonesImagenes->addWidget(btnPartida);
+    connect(btnPartida, &QPushButton::clicked, this, &MainWindow::abrirPartida);
 
     // --- Composición de ligas (qué equipos juegan en Primera/Segunda) ---
     QPushButton *btnLigas = new QPushButton("Composición de ligas", this);
@@ -1272,6 +1279,24 @@ void MainWindow::exportarSonidos()
         resumen = "No se ha encontrado ningún .RAW en esa carpeta.";
 
     QMessageBox::information(this, "Exportación de sonidos", resumen);
+}
+
+void MainWindow::abrirPartida()
+{
+    const QString juego = rutaJuegoActual();
+    const QString tactics = PCFutbolTactica::carpetaTactics(juego);
+    const QString ruta = QFileDialog::getOpenFileName(this, "Partida de Liga Manager",
+        tactics.isEmpty() ? juego : tactics, "Partidas de Liga Manager (LIGA.* liga.*);;Todos (*)");
+    if (ruta.isEmpty()) return;
+    PCFutbolPartida p;
+    QString err;
+    if (!p.cargar(ruta, &err))
+    {
+        QMessageBox::warning(this, "Partida guardada", err);
+        return;
+    }
+    DialogPartida d(ruta, p, juego, this);
+    d.exec();
 }
 
 void MainWindow::abrirSonidos()

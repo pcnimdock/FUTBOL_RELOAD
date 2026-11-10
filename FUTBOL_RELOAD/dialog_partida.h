@@ -1,0 +1,48 @@
+#ifndef DIALOG_PARTIDA_H
+#define DIALOG_PARTIDA_H
+
+/*
+ * Ventana «Partida guardada»: editar una partida de Liga Manager en curso
+ * (TACTICS/LIGA.n): caja y entrenamiento de cada equipo, su táctica, y las
+ * medias, energía y valor de cada jugador. Ver pcfutbol_partida.h.
+ */
+
+#include <QDialog>
+#include "pcfutbol_partida.h"
+
+class QListWidget;
+class QTableWidget;
+class QLabel;
+class QDoubleSpinBox;
+class QSpinBox;
+class QLineEdit;
+
+class DialogPartida : public QDialog
+{
+    Q_OBJECT
+public:
+    DialogPartida(const QString &ruta, const PCFutbolPartida &partida,
+                  const QString &carpetaJuego, QWidget *parent = nullptr);
+
+private:
+    void llenarEquipos();
+    void mostrarEquipo(int i);
+    void recogerTabla();
+    void editarTactica();
+    void guardar();
+    void reject() override;
+
+    QString m_ruta, m_carpetaJuego;
+    PCFutbolPartida m_p;
+    int m_actual = -1;
+    bool m_cargando = false;
+
+    QLineEdit *m_filtro = nullptr;
+    QListWidget *m_lista = nullptr;
+    QLabel *m_titulo = nullptr;
+    QDoubleSpinBox *m_caja = nullptr;
+    QSpinBox *m_entr[3] = {nullptr, nullptr, nullptr};
+    QTableWidget *m_tabla = nullptr;
+};
+
+#endif // DIALOG_PARTIDA_H

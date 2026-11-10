@@ -16,6 +16,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    pcfutbol_partida.cpp \
+    dialog_partida.cpp \
     pcfutbol_tactica.cpp \
     dialog_tactica.cpp \
     pcfutbol_audio.cpp \
@@ -50,6 +52,8 @@ SOURCES += \
     mybutton.cpp
 
 HEADERS += \
+    pcfutbol_partida.h \
+    dialog_partida.h \
     pcfutbol_tactica.h \
     dialog_tactica.h \
     pcfutbol_audio.h \
