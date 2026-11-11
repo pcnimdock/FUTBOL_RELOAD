@@ -390,9 +390,8 @@ partida guardada, no de los DBC.** Por tanto:
 
 ## Copas (Liga Manager)
 
-Comprobado con 5 partidas grabadas a lo largo de 15 fechas de una temporada
-jugada con el Real Madrid (jornadas 3 a 12, con cruces de ida y vuelta ya
-resueltos). Los ids de equipo son los de la base de datos: los españoles
+Comprobado con 11 partidas grabadas a lo largo de una temporada jugada de
+forma automática con el Real Madrid (jornadas 3 a 29, hasta las finales). Los ids de equipo son los de la base de datos: los españoles
 son 1 Barcelona, 2 Deportivo, 3 Zaragoza, 4 Real Madrid…, y los extranjeros
 llevan el país en las centenas (852, 2102…).
 
@@ -414,18 +413,21 @@ los equipos españoles de 1995-96 que aparecen en cada bloque:
 | 1 | goles del equipo 1 en la vuelta (255 = sin jugar) |
 | 2 | goles del equipo 2 en la ida; **+128 si es el que pasa** |
 | 3 | goles del equipo 2 en la vuelta (255 = sin jugar) |
-| 4, 5 | siempre 0 en todo lo visto (ni siquiera en un cruce empatado que tuvo que ir a penaltis) |
+| 4, 5 | siempre 0 en todo lo visto; por el orden en que se escriben, probablemente los penaltis |
 
 Un cruce sorteado y sin jugar lleva `255 255 255 255 0 0`; con la ida
 jugada, por ejemplo, `2 255 1 255 0 0` (2-1). Al resolverse, el que pasa
 lleva el bit alto en su byte de ida: `130 0 1 0` es 2+0 contra 1+0, pasa
 el equipo 1; `1 0 129 2` es 1+0 contra 1+2, pasa el equipo 2.
 
-El equipo 1 juega la ida en casa. Comprobado en los 112 cruces resueltos de
-las partidas: el bit va siempre al que suma más goles, y en caso de empate
-al que marcó más fuera (`129 1 0 2` es 2-2 y pasa el equipo 1 por su gol en
-la vuelta). En `129 2 1 2` (3-3 y un gol fuera cada uno) pasa el equipo 1 sin
-que los bytes 4 y 5 cambien: si hubo penaltis, el resultado no se guarda.
+El equipo 1 juega la ida en casa. Comprobado en los 180 cruces resueltos
+de una temporada: el bit va siempre al que suma más goles, y en caso de
+empate al que marcó más fuera (`129 1 0 2` es 2-2 y pasa el equipo 1 por su
+gol en la vuelta). No salió ningún empate también en goles fuera, así que
+no se ha visto cómo se guardan los penaltis.
+
+La final se guarda como un cruce más, pero es a partido único: la
+cabecera la cuenta como una ronda.
 
 Las rondas van **de la final hacia atrás**: el primer cruce es la final,
 luego 2 semifinales, 4 cuartos, etc. La primera ronda que se juega es la
@@ -438,7 +440,7 @@ la jornada 1 al final. Usan solo la ida (bytes 1 y 3 a 255).
 | u16 | Significado |
 |---|---|
 | 0 | cruces con la ida jugada y la vuelta pendiente (0 si no hay ronda a medias) |
-| 1 | rondas terminadas (en la Copa de Europa, jornadas de grupos jugadas) |
+| 1 | rondas terminadas (en la Copa de Europa cuenta también las 6 jornadas de grupos: 8 = grupos, cuartos y semifinales) |
 | 2 | 1 entre la ida y la vuelta, 0 si no |
 | 3 | equipos que siguen vivos (32 → 16 → 8 en la Recopa) |
 | 4, 5 | 0 |
@@ -462,7 +464,8 @@ Ejemplos de la Recopa: `16 0 1 32` tras la ida de la primera ronda,
 - **Sin identificar (no afectan a la edición):**
   - Liga Manager: 5 de los 8 bytes de estado de la cabecera (variables internas
     del bucle de liga y del partido);
-  - los bytes 4 y 5 de cada cruce de copa (siempre 0) y el primer u16 de
+  - los bytes 4 y 5 de cada cruce de copa (siempre 0; no ha salido ningún
+    cruce que se decida por penaltis) y el primer u16 de
     la cabecera de la Copa de Europa en la jornada 3 (vale 2);
   - Promanager: el u32 y el segundo double del jugador, y u16 y bytes
     siempre fijos (FFFF, 255, 0) que no cambian en las partidas vistas;
