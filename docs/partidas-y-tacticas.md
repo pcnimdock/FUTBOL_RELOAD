@@ -141,7 +141,7 @@ Tras la cabecera (ver tabla), lo que escribe `0x101e0`:
 | u16 [0x1C] | **nº de jugador humano** que lo lleva (FFFF = ordenador) |
 | u16 [0x20] | **puesto en la clasificación** |
 | u16 [0x24] | sin inicializar (valor al azar fijo por equipo; no se usa) |
-| u32 [0x28] | **aforo** (igual al DBC; entra en el pago de empleados) |
+| u32 [0x28] | **aforo** (igual al DBC en los 42 equipos) |
 | texto + 176 bytes | nombre y **táctica** activa |
 | 3 u16 [0x1A8…] | **entrenamiento** (defensa, medio, delantera) |
 | u16 [0x1B4] | **cambios hechos en la alineación** esta semana («Cambios realizados: %d») |
@@ -173,8 +173,8 @@ Los 24 double (identificados con las pantallas Caja y Decisiones):
 
 - Las **primas que se fijan en «Decisiones» no se graban** en Liga Manager: al
   cargar vuelven a 0 (comprobado).
-- Las fichas de jugadores se calculan como (presupuesto / 1.000)^¼ × 36 × un
-  campo del equipo.
+- La Caja calcula su primer pago como (presupuesto / 1.000)^¼ × 36 × un
+  campo entero de la estructura (no se ha comprobado cuál).
 
 **Jugador** (`0x322e1`). Casi todo es copia de su ficha del DBC; se cruzaron
 1.027 jugadores y coinciden todos:
@@ -254,8 +254,12 @@ Formato sacado de `PROMANAG.DAT` y comprobado leyendo una partida entera
 - **Equipo** (`0x26453`):
   - 5 textos (con el presidente);
   - u16 id y u16 sin inicializar;
-  - 3 u8: **división**, un código (1 en Primera, 5 en el Villarreal) y
-    **nº de orden en su división**;
+  - 3 u8: **división**, **objetivo de la temporada** y **nº de orden en su
+    división**. Objetivos (tabla de `PROMANAG.DAT`): 0 Título de Liga,
+    1 Entrar en la UEFA, 2 Zona tranquila (1ª), 3 Permanencia (1ª),
+    4 Ascenso a Primera, 5 Zona tranquila (2ª), 6 Permanencia (2ª). Coincide
+    con la pantalla de ofertas (Villarreal 5; Écija, Eibar, Sestao y
+    Getafe 6);
   - 3 u16: **nº de mánager humano** (FFFF = ordenador), **puesto en la
     clasificación** y uno sin inicializar;
   - 2 u32: **aforo** y **socios** (iguales al DBC en los 42 equipos);
@@ -266,11 +270,19 @@ Formato sacado de `PROMANAG.DAT` y comprobado leyendo una partida entera
     del mánager humano: 48 semanas × 21 `float` ([0] caja al empezar la
     semana, [7] fichas, [9] taquilla, [10] vallas…);
   - 7 double: presupuesto, **caja**, **precio de la entrada**, **precio por
-    valla**, **prima por objetivo**, **prima por puntos** y deuda del crédito.
-    Las primas sí se graban en Promanager (comprobado);
-  - 9 u8 (el 3.º son las **semanas del crédito**), 11 u16 de
-    **emparejamientos**, y 4 u16: posición del elemento de emparejamientos
-    (100, 200) y **posición del escudo** X e Y.
+    valla**, **prima por objetivo**, **prima por puntos** y **precio de la
+    ampliación del estadio**. Las primas sí se graban en Promanager
+    (comprobado en «Decisiones»);
+  - 9 u8:
+    - puesto anterior y división;
+    - **semanas del crédito**;
+    - **semanas de la obra del estadio**, **semanas que faltan** (distinto de
+      0 = obra en marcha; dinero restante = precio / semanas × faltan) y
+      **ampliación elegida** (0, 1, 2 = 4.000, 8.000 o 12.000 asientos);
+    - jornada en que entró en números rojos;
+    - dos marcas de la televisión;
+  - 11 u16 de **emparejamientos**, y 4 u16: posición del elemento de
+    emparejamientos (100, 200) y **posición del escudo** X e Y.
   - No guarda entrenamiento.
 - **Jugador** (`0x36173`):
   - puntero, nombres y u16 de procedencia (texto si es 9900);
@@ -284,8 +296,10 @@ Formato sacado de `PROMANAG.DAT` y comprobado leyendo una partida entera
     - 5 grupos de incidencias en [8], [14], [18], [22] y [26], y en [12]-[13]
       la **tarjeta del último partido y su minuto**;
   - u16 **equipo actual**, u16 (siempre FFFF) y u16 **nº de orden** (de 1 a N);
-  - double precio, double (siempre 0) y u32 (unas 574 veces el precio en
-    millones: probablemente la ficha);
+  - double precio, double (siempre 0 en las partidas vistas) y u32 que crece
+    con el precio (unas 574 veces el precio en millones). No se ha confirmado
+    qué es: la suma de la plantilla no da las fichas de la Caja con un factor
+    limpio;
   - 11 u8: VE, RE, AG y CA; 4 aptitudes; **MO, EF y EN**.
 - **Cuidado al probar:** el juego no cierra el fichero hasta que se acepta el
   mensaje «La liga actual ha sido grabada». Si se cierra DOSBox antes, queda a
@@ -376,8 +390,16 @@ partida guardada, no de los DBC.** Por tanto:
 ## Pendiente
 
 - Identificar los otros double del equipo.
-- Promanager: la «Remodelación del estadio» de Decisiones (precio, semanas,
-  aforo ampliado), los 9 u8 restantes del equipo y el código de 3 u8.
+- **Sin identificar (no afectan a la edición):**
+  - Liga Manager: 5 de los 8 bytes de estado de la cabecera (variables internas
+    del bucle de liga y del partido) y las cabeceras de u16 de cada copa;
+  - el significado exacto de los 6 bytes de cada cruce de copa (ida, vuelta y
+    penaltis por equipo, deducido del orden pero sin ver un cruce jugado) y de
+    los 6 × 8 cruces de la UEFA (probablemente la fase de grupos);
+  - Promanager: el u32 y el segundo double del jugador, y u16 y bytes
+    siempre fijos (FFFF, 255, 0) que no cambian en las partidas vistas;
+  - campos sin inicializar (valores al azar fijos por equipo): Liga Manager
+    [0x24]; Promanager el 2.º u16 y el 3.º de los 3 u16 del equipo.
 - Un editor de la ficha del mánager (ver o cambiar la clave); el formato ya
   se conoce.
 - Promanager: `PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`, por probar.
