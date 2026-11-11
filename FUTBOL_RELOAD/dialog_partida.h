@@ -50,6 +50,8 @@ private:
     QListWidget *m_lista = nullptr;
     QLabel *m_titulo = nullptr;
     QDoubleSpinBox *m_caja = nullptr;
+    QDoubleSpinBox *m_entrada = nullptr, *m_valla = nullptr, *m_prima1 = nullptr, *m_prima2 = nullptr;
+    QLabel *m_lPrima1 = nullptr, *m_lPrima2 = nullptr;
     QSpinBox *m_entr[3] = {nullptr, nullptr, nullptr};
     QTableWidget *m_tabla = nullptr;
 };

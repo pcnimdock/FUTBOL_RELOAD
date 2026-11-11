@@ -78,10 +78,10 @@ hacia 0x1DF0.
 | 0x0F | Nombre del jugador: longitud + texto XOR 0x61 (como en los DBC) |
 | detrás | Jornada actual (1 byte) |
 | detrás | Texto de copyright del juego, 70 bytes |
-| detrás | 8 bytes de estado (jornada, competición…) |
+| detrás | 8 bytes de estado: nº de jugadores humanos, **jornada actual** (la de las bajas), dos variables del bucle de liga y promoción, una del partido, otra sin uso visto, **competición en curso** (`nActualComp`) y otra del bucle |
 | detrás | Calendario de Primera: 45 × 11 partidos × 4 bytes: local, visitante, goles local, goles visitante. Los goles valen 255 si no se ha jugado. Los equipos se numeran como `EQ9500nn`. |
 | detrás | Calendario de Segunda: 38 × 10 × 4 bytes |
-| detrás | Copa del Rey, Copa de Europa, Recopa y UEFA (eliminatorias), clasificaciones y estadísticas. Crece al jugar (+418 bytes tras la jornada 1). |
+| detrás | Copa del Rey, Copa de Europa, Recopa y UEFA: una cabecera de u16 y los cruces de 10 bytes (u16 equipo 1, u16 equipo 2 y 6 u8 escritos en el orden 8, 11, 9, 12, 10, 13 de la estructura, que por ese orden son con toda probabilidad los goles de ida, vuelta y penaltis de cada equipo; no se ha llegado a ver un cruce jugado). La marca 5 lleva la tabla de clasificados para Europa (15 u16, la de `0xA21AC`) y 4 u16 más. |
 | detrás | **Los 42 equipos completos**, más un bloque «SEGUNDA B» (de 2,2 a 3,8 KB cada uno) |
 
 Cada equipo de la partida lleva:
@@ -118,21 +118,63 @@ Tras la cabecera (ver tabla), lo que escribe `0x101e0`:
 6. Orden de los equipos: 22 + 20 u16.
 7. Equipos: `1` + equipo, y `2` + jugador por cada jugador. Son 42 equipos más
    el 9900 (jugadores sueltos, «SEGUNDA B»), y la lista termina en `0`.
-8. Cola: goleadores (`0x3a4c4`), una lista de registros y los 20 mánagers
-   humanos. El editor la conserva tal cual.
+8. Cola. El editor la conserva tal cual y se lee entera hasta el último byte:
+   - **goles** de cada división, partido a partido en orden de calendario:
+     u16 equipo, u16 puesto del goleador en la alineación, u8 tipo, u8
+     minuto. Termina en `55AA` al primer partido sin jugar;
+   - **lista de jugadores en venta tal como se muestra:** u16 cuántos, y por
+     cada uno texto nombre, u8, u8, u16 equipo, u16 (FFFF) y double precio;
+   - **20 mánagers humanos:** texto nombre, u16 equipo, u16 **tipo de
+     control** (1 = teclado) y las **5 teclas** (scancode y letra: O, F, P, V
+     y Espacio por defecto).
 
-**Equipo** (`0x24c07`). Los textos llevan un byte de longitud y van con XOR 0x61.
+**Equipo** (`0x24c07`). Los textos llevan un byte de longitud y van con XOR
+0x61. Entre corchetes, la posición en la estructura en memoria.
 
-- Cuatro textos: nombre largo, nombre corto, mayúsculas y estadio.
-- Entrenador: u16, texto y 2 × u32.
-- 2 u16, el id (`EQ9500nn`), 4 u16 y un u32. Uno de esos u16 es el puesto en la
-  clasificación.
-- Nombre de la táctica y la táctica (176 bytes).
-- **Entrenamiento**: 3 u16 (defensa, medio, delantera) y 2 u16 más (el último
-  es el número de jugadores).
-- 24 double: [0] presupuesto, **[1] caja**, [2] ¿?, [6] 100.000,
-  [7] 2.500, y [13] y [14] la taquilla y las vallas del último partido en casa.
-- 6 u16, 11 u16 (sin identificar; no son la alineación) y 2 u16.
+| Campo | Significado |
+|---|---|
+| 4 textos | nombre largo, corto, mayúsculas y estadio |
+| entrenador | u16, nombre y 2 u32 |
+| u16 [0x1B8], u16 [0x1BC] | **posición del escudo** X e Y (iguales al DBC en los 42 equipos) |
+| u16 [0x14] | **id** (`EQ9500nn`) |
+| u16 [0x18] | **división** (0 Primera, 1 Segunda) |
+| u16 [0x1C] | **nº de jugador humano** que lo lleva (FFFF = ordenador) |
+| u16 [0x20] | **puesto en la clasificación** |
+| u16 [0x24] | sin inicializar (valor al azar fijo por equipo; no se usa) |
+| u32 [0x28] | **aforo** (igual al DBC; entra en el pago de empleados) |
+| texto + 176 bytes | nombre y **táctica** activa |
+| 3 u16 [0x1A8…] | **entrenamiento** (defensa, medio, delantera) |
+| u16 [0x1B4] | **cambios hechos en la alineación** esta semana («Cambios realizados: %d») |
+| u16 [0x1C8] | **nº de jugadores** |
+| 24 double [0x1CC…] | dinero: ver la tabla siguiente |
+| u16 [0x28C] | **puesto en la jornada anterior** |
+| u16 [0x290] | división (para ascensos y descensos) |
+| u16 [0x294] | **semanas del crédito** («A devolver en N semanas») |
+| u16 [0x298] | **jornada en que entró en números rojos** (aviso de quiebra a las 3 semanas) |
+| u16 [0x29C], u16 [0x2A0] | marcas de la televisión (pasan a 1 tras la jornada; la Caja usa 0x2A0 para la TV) |
+| 11 u16 [0x2A4…] | **emparejamientos** (marcajes de los 11 titulares; 255 = ninguno) |
+| u16 [0x2D0], u16 [0x2D4] | posición en pantalla de un elemento arrastrable de «Emparejamientos» (100, 200) |
+
+Los 24 double (identificados con las pantallas Caja y Decisiones):
+
+| nº | Significado | nº | Significado |
+|---|---|---|---|
+| 0 | presupuesto | 12 | compra de jugador (semana anterior) |
+| 1 | **caja** | 13 | Liga: taquilla |
+| 2 | caja al empezar la semana | 14 | Liga: publicidad (vallas) |
+| 3 | crédito concedido | 15 | Copa de Europa: taquilla |
+| 4 | deuda pendiente (intereses = d4 × 12 / 5.200) | 16 | Copa de Europa: publicidad |
+| 5 | devolución semanal | 17 | Copa de Europa: ingresos por punto |
+| 6 | **precio por valla** | 18-20 | Copa del Rey: taquilla, publicidad, TV |
+| 7 | **precio de la entrada** (taquilla = espectadores × d7) | 21-23 | UEFA y Recopa: taquilla, publicidad, TV |
+| 8, 9 | primas pagadas (por victoria / por empate) | | |
+| 10 | venta de jugador | | |
+| 11 | compra de jugador (semana) | | |
+
+- Las **primas que se fijan en «Decisiones» no se graban** en Liga Manager: al
+  cargar vuelven a 0 (comprobado).
+- Las fichas de jugadores se calculan como (presupuesto / 1.000)^¼ × 36 × un
+  campo del equipo.
 
 **Jugador** (`0x322e1`). Casi todo es copia de su ficha del DBC; se cruzaron
 1.027 jugadores y coinciden todos:
@@ -148,7 +190,9 @@ Tras la cabecera (ver tabla), lo que escribe `0x101e0`:
   lesión (Raúl y Palacios, con cruz en el juego). Márquez, con tarjeta roja,
   tenía `0,0,1`. En muchos jugadores sanos hay valores sin sentido (restos de
   memoria), así que no se interpretan; los cuatro a 0 es un jugador limpio;
-- 2 u8;
+- 2 u8: **tarjeta en el último partido** (1 amarilla, 2 roja) y **minuto**. Al
+  cerrar la jornada, una roja crea la incidencia de tipo 3 y una amarilla suma
+  una a NAmarillas;
 - **double: precio** (la columna PRECIO de «Vender»; precio del DBC × 1 millón);
 - **4 u8: VE, RE, AG, CA** y **4 u8: aptitudes de técnica, remate, pase y tiro**
   (0/1, las mismas del DBC);
@@ -182,7 +226,9 @@ Lo hace `PCMANAG.DAT` en `0x33263` (pantalla) y `0x37d32` (cada jornada):
   no hay baja, aunque los otros bytes tengan basura.
 - Con 5 amarillas en liga (2 en copa) pone `Incidencias` = 4 (7 en copa),
   una jornada de sanción, y resta las amarillas.
-- Tipos: 1 = lesión (cruz roja); los demás, sanciones.
+- Tipos (llamadas a `0x318fc`): 0 ninguna, 1 lesión (cruz roja), 2 y 3
+  expulsión, 4 sanción por 5 amarillas en liga, 7 sanción por 2 amarillas en
+  copa.
 
 Comprobado: Raúl (1,1,1) y Palacios (1,0,2) salen con «2» en el juego, y el
 editor da 2.
@@ -207,25 +253,40 @@ Formato sacado de `PROMANAG.DAT` y comprobado leyendo una partida entera
   equipos (`1` + equipo, `2` + jugador…, `0`) y la cola.
 - **Equipo** (`0x26453`):
   - 5 textos (con el presidente);
-  - u16 id, u16, 3 u8, 3 u16 y 2 u32;
+  - u16 id y u16 sin inicializar;
+  - 3 u8: **división**, un código (1 en Primera, 5 en el Villarreal) y
+    **nº de orden en su división**;
+  - 3 u16: **nº de mánager humano** (FFFF = ordenador), **puesto en la
+    clasificación** y uno sin inicializar;
+  - 2 u32: **aforo** y **socios** (iguales al DBC en los 42 equipos);
   - nombre de la táctica y táctica;
   - u16 y u16 **número de jugadores**;
   - entrenador (u16 + texto);
-  - u16: si vale 1 siguen **48 registros de 84 bytes** (solo en el equipo
-    del mánager humano);
-  - 7 double: [0] presupuesto y **[1] caja**;
-  - 9 u8, 11 u16 y 4 u16.
+  - u16: si vale 1 siguen 48 × 84 bytes con el **historial semanal de la Caja**
+    del mánager humano: 48 semanas × 21 `float` ([0] caja al empezar la
+    semana, [7] fichas, [9] taquilla, [10] vallas…);
+  - 7 double: presupuesto, **caja**, **precio de la entrada**, **precio por
+    valla**, **prima por objetivo**, **prima por puntos** y deuda del crédito.
+    Las primas sí se graban en Promanager (comprobado);
+  - 9 u8 (el 3.º son las **semanas del crédito**), 11 u16 de
+    **emparejamientos**, y 4 u16: posición del elemento de emparejamientos
+    (100, 200) y **posición del escudo** X e Y.
   - No guarda entrenamiento.
 - **Jugador** (`0x36173`):
   - puntero, nombres y u16 de procedencia (texto si es 9900);
-  - 7 u8 (posición, …);
-  - 30 u8: extranjero, piel, pelo, dorsal, **alineación** y 5 grupos de
-    incidencias, que empiezan en +8, +14, +18, +22 y +26 (en +13, el minuto
-    de la última tarjeta);
-  - u16 **equipo actual**, u16 y u16 **nº de orden** (de 1 a N);
-  - double precio, double y u32;
-  - 11 u8: VE, RE, AG y CA; 4 aptitudes; **MO, EF y EN** (moral,
-    efectividad y energía, las columnas de la Alineación del Promanager).
+  - 7 u8: posición, **demarcación − 1** y las **5 demarcaciones secundarias
+    − 1** (98 = ninguna). Comprobado en los 1.027 jugadores;
+  - 30 u8:
+    - [0] **demarcación en la que juega** (la asignada en la alineación);
+    - [1] extranjero, [2] piel, [3] pelo, [4] dorsal, [5] **alineación**;
+    - [6] partidos jugados;
+    - [7] siempre 255;
+    - 5 grupos de incidencias en [8], [14], [18], [22] y [26], y en [12]-[13]
+      la **tarjeta del último partido y su minuto**;
+  - u16 **equipo actual**, u16 (siempre FFFF) y u16 **nº de orden** (de 1 a N);
+  - double precio, double (siempre 0) y u32 (unas 574 veces el precio en
+    millones: probablemente la ficha);
+  - 11 u8: VE, RE, AG y CA; 4 aptitudes; **MO, EF y EN**.
 - **Cuidado al probar:** el juego no cierra el fichero hasta que se acepta el
   mensaje «La liga actual ha sido grabada». Si se cierra DOSBox antes, queda a
   medias (múltiplo de 4 KB) y al cargarla el juego se cuelga.
@@ -315,8 +376,8 @@ partida guardada, no de los DBC.** Por tanto:
 ## Pendiente
 
 - Identificar los otros double del equipo.
-- En Promanager: el significado de los 48 registros del mánager, la
-  demarcación y el resto de bytes del jugador.
+- Promanager: la «Remodelación del estadio» de Decisiones (precio, semanas,
+  aforo ampliado), los 9 u8 restantes del equipo y el código de 3 u8.
 - Un editor de la ficha del mánager (ver o cambiar la clave); el formato ya
   se conoce.
 - Promanager: `PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`, por probar.

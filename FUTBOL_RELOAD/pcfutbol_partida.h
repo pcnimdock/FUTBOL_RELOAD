@@ -77,6 +77,11 @@ public:
         QList<Jugador> jugadores;
         int offCaja = -1, offEntrenamiento = -1, offTactica = -1;
         int offNumJugadores = -1;      // u16 con el número de jugadores
+        // Pantalla «Decisiones»: precio de la entrada, precio por valla y
+        // primas al equipo (Liga Manager: por victoria y por empate;
+        // Promanager: por objetivo y por ganar)
+        double precioEntrada = 0, precioValla = 0, prima1 = 0, prima2 = 0;
+        int offPrecioEntrada = -1, offPrecioValla = -1, offPrima1 = -1, offPrima2 = -1;
         int inicio = -1, fin = -1;     // registro del equipo (sin la marca 1)
     };
 

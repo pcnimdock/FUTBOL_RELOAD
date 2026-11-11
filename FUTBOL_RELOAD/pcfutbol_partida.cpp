@@ -187,14 +187,23 @@ void leerEquipoPro(Lector &r, PCFutbolPartida::Equipo *e)
     r.u16();
     e->entrenador = r.texto();
     if (r.u16() != 0) r.saltar(48 * 84);
+    // 7 double: 0 presupuesto, 1 caja, 2 precio de la entrada, 3 precio por
+    // valla, 4 prima por objetivo, 5 prima por puntos, 6 deuda del crédito
     const int offDobles = r.o;
     r.saltar(7 * 8);
     e->offCaja = offDobles + 8;
+    e->offPrecioEntrada = offDobles + 2 * 8;
+    e->offPrecioValla = offDobles + 3 * 8;
+    e->offPrima1 = offDobles + 4 * 8;
+    e->offPrima2 = offDobles + 5 * 8;
     if (!r.mal)
     {
         Lector c(r.d);
-        c.o = e->offCaja;
-        e->caja = c.f64();
+        c.o = e->offCaja; e->caja = c.f64();
+        c.o = e->offPrecioValla; e->precioValla = c.f64();
+        c.o = e->offPrecioEntrada; e->precioEntrada = c.f64();
+        c.o = e->offPrima1; e->prima1 = c.f64();
+        c.o = e->offPrima2; e->prima2 = c.f64();
     }
     r.saltar(9 + 11 * 2 + 4 * 2);
     e->fin = r.o;
@@ -227,12 +236,22 @@ void leerEquipo(Lector &r, PCFutbolPartida::Equipo *e)
     r.saltar(2);
     const int offDobles = r.o;
     r.saltar(24 * 8);
-    e->offCaja = offDobles + 8;     // el segundo: lo que hay en caja
+    // 24 double: 0 presupuesto, 1 caja, 2 caja al empezar la semana, 3 crédito,
+    // 4 deuda, 5 devolución semanal, 6 precio por valla, 7 precio de la
+    // entrada, 8 y 9 primas pagadas (por victoria / por empate; las primas
+    // que se fijan en «Decisiones» no se graban en la partida: al cargar
+    // vuelven a 0, comprobado), 10 venta de jugador,
+    // 11 compra (semana), 12 compra (semana anterior), 13-23 taquilla,
+    // publicidad y TV de cada competición (ver docs/partidas-y-tacticas.md)
+    e->offCaja = offDobles + 8;
+    e->offPrecioValla = offDobles + 6 * 8;
+    e->offPrecioEntrada = offDobles + 7 * 8;
     if (!r.mal)
     {
         Lector c(r.d);
-        c.o = e->offCaja;
-        e->caja = c.f64();
+        c.o = e->offCaja; e->caja = c.f64();
+        c.o = e->offPrecioValla; e->precioValla = c.f64();
+        c.o = e->offPrecioEntrada; e->precioEntrada = c.f64();
     }
     r.saltar(6 * 2 + 11 * 2 + 2 * 2);
     e->fin = r.o;
@@ -373,6 +392,10 @@ void PCFutbolPartida::aplicar()
     for (const Equipo &e : m_equipos)
     {
         if (e.offCaja >= 0) ponerF64(m_datos, e.offCaja, e.caja);
+        if (e.offPrecioEntrada >= 0) ponerF64(m_datos, e.offPrecioEntrada, qMax(0.0, e.precioEntrada));
+        if (e.offPrecioValla >= 0) ponerF64(m_datos, e.offPrecioValla, qMax(0.0, e.precioValla));
+        if (e.offPrima1 >= 0) ponerF64(m_datos, e.offPrima1, qMax(0.0, e.prima1));
+        if (e.offPrima2 >= 0) ponerF64(m_datos, e.offPrima2, qMax(0.0, e.prima2));
         if (e.offEntrenamiento >= 0)
             for (int i = 0; i < 3; i++)
             {

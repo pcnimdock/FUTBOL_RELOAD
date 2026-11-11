@@ -75,6 +75,53 @@ DialogPartida::DialogPartida(const QString &ruta, const PCFutbolPartida &partida
     m_caja->setSuffix(" pts");
     m_caja->setToolTip("Dinero en caja (Finanzas → Caja → «Caja»)");
     fl->addRow("Caja:", m_caja);
+    auto dinero = [this](double max, const QString &tip) {
+        auto *b = new QDoubleSpinBox(this);
+        b->setRange(0, max);
+        b->setDecimals(0);
+        b->setGroupSeparatorShown(true);
+        b->setSuffix(" pts");
+        b->setToolTip(tip);
+        return b;
+    };
+    m_entrada = dinero(1e6, "Precio de las entradas (Finanzas → Decisiones). La taquilla es espectadores × precio.");
+    m_valla = dinero(1e8, "Precio por valla publicitaria (Finanzas → Decisiones)");
+    m_prima1 = dinero(1e10, "");
+    m_prima2 = dinero(1e10, "");
+    QHBoxLayout *precios = new QHBoxLayout();
+    precios->addWidget(new QLabel("Entrada", this));
+    precios->addWidget(m_entrada);
+    precios->addWidget(new QLabel("Valla", this));
+    precios->addWidget(m_valla);
+    fl->addRow("Precios:", precios);
+    QHBoxLayout *primas = new QHBoxLayout();
+    m_lPrima1 = new QLabel(this);
+    m_lPrima2 = new QLabel(this);
+    primas->addWidget(m_lPrima1);
+    primas->addWidget(m_prima1);
+    primas->addWidget(m_lPrima2);
+    primas->addWidget(m_prima2);
+    fl->addRow("Primas al equipo:", primas);
+    // Solo el Promanager guarda las primas (en Liga Manager vuelven a 0 al cargar)
+    const bool pro = m_p.esPromanager();
+    m_lPrima1->setText("Por objetivo");
+    m_lPrima2->setText("Por puntos");
+    if (!pro)
+    {
+        fl->labelForField(primas)->hide();
+        for (QWidget *w : {static_cast<QWidget *>(m_lPrima1), static_cast<QWidget *>(m_lPrima2),
+                           static_cast<QWidget *>(m_prima1), static_cast<QWidget *>(m_prima2)})
+            w->hide();
+    }
+    for (QDoubleSpinBox *b : {m_entrada, m_valla, m_prima1, m_prima2})
+        connect(b, &QDoubleSpinBox::valueChanged, this, [this]() {
+            if (m_cargando || m_actual < 0) return;
+            auto &e = m_p.equipos()[m_actual];
+            e.precioEntrada = m_entrada->value();
+            e.precioValla = m_valla->value();
+            e.prima1 = m_prima1->value();
+            e.prima2 = m_prima2->value();
+        });
     QHBoxLayout *entr = new QHBoxLayout();
     const char *nom[3] = {"Defensa", "Mediocampo", "Delantera"};
     for (int i = 0; i < 3; i++)
@@ -191,6 +238,10 @@ void DialogPartida::mostrarEquipo(int i)
     const auto &e = m_p.equipos()[i];
     m_titulo->setText(QString("%1 — %2 · entrenador: %3").arg(e.nombreCorto, e.estadio, e.entrenador));
     m_caja->setValue(e.caja);
+    m_entrada->setValue(e.precioEntrada);
+    m_valla->setValue(e.precioValla);
+    m_prima1->setValue(e.prima1);
+    m_prima2->setValue(e.prima2);
     for (int k = 0; k < 3; k++)
     {
         const bool hay = e.offEntrenamiento >= 0;
