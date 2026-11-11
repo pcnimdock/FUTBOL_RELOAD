@@ -193,9 +193,21 @@ void DialogPartida::mostrarEquipo(int i)
     m_caja->setValue(e.caja);
     for (int k = 0; k < 3; k++)
     {
-        m_entr[k]->setEnabled(e.offEntrenamiento >= 0);
-        m_entr[k]->setValue(e.entrenamiento[k]);
-        if (e.offEntrenamiento < 0) m_entr[k]->setToolTip("Las partidas de Promanager no guardan entrenamiento");
+        const bool hay = e.offEntrenamiento >= 0;
+        m_entr[k]->setEnabled(hay);
+        if (hay)
+        {
+            m_entr[k]->setSpecialValueText(QString());
+            m_entr[k]->setRange(PCFutbolPartida::MIN_ENTRENAMIENTO, PCFutbolPartida::MAX_ENTRENAMIENTO);
+            m_entr[k]->setValue(e.entrenamiento[k]);
+        }
+        else
+        {
+            // Promanager: no se guarda; se enseña «—»
+            m_entr[k]->setRange(0, 0);
+            m_entr[k]->setSpecialValueText("—");
+            m_entr[k]->setToolTip("Las partidas de Promanager no guardan entrenamiento");
+        }
     }
 
     QList<int> orden;
