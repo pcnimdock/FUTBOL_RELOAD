@@ -317,6 +317,13 @@ void DialogEquipos::on_btn_mas_jugador_clicked()
     // (número de foto) que no use nadie. Antes se escribía por error el
     // número en la «posición en el campo» (0-3) y la alineación quedaba sin
     // poner, lo que podía colgar el juego.
+    if (eq.lista_jugadores.size() >= PCFutbolPlantillas::MAX_JUGADORES_JUEGO)
+    {
+        QMessageBox::warning(this, "Añadir jugador",
+            QString("El equipo ya tiene %1 jugadores, el máximo del juego: con uno más no arranca.")
+                .arg(PCFutbolPlantillas::MAX_JUGADORES_JUEGO));
+        return;
+    }
     quint16 p = 1;
     while (punteros.contains(p)) p++;
     for (const JUGADOR &j : eq.lista_jugadores)

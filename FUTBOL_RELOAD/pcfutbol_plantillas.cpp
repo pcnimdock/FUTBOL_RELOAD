@@ -236,11 +236,24 @@ void quitarJugador(EQUIPO &eq, int idxJugador)
     renumerarAlineacion(eq);
 }
 
-QList<Problema> comprobar(const QList<EQUIPO> &equipos, const PCFutbolTemporadaReal *real)
+QList<Problema> comprobar(const QList<EQUIPO> &equipos, const PCFutbolTemporadaReal *real,
+                          const QList<JUGADOR> *estrellas)
 {
     QList<Problema> r;
     auto grave = [&r](const QString &t, bool corr) { r.append({true, corr, t}); };
     auto aviso = [&r](const QString &t, bool corr) { r.append({false, corr, t}); };
+
+    if (estrellas)
+    {
+        const int n = estrellas->size();
+        if (n > MAX_ESTRELLAS)
+            grave(QString("Estrellas Mundiales: %1 jugadores. Con más de %2 la Liga Manager se cuelga "
+                          "al cargar (probado en el juego)").arg(n).arg(MAX_ESTRELLAS), false);
+        else if (n > MAX_ESTRELLAS_PROBADO)
+            aviso(QString("Estrellas Mundiales: %1 jugadores. Se ha probado una liga entera con %2; "
+                          "cerca de %3 la Liga Manager puede colgarse al cargar, antes cuanto más "
+                          "largos sean los nombres").arg(n).arg(MAX_ESTRELLAS_PROBADO).arg(MAX_ESTRELLAS), false);
+    }
 
     if (real)
     {
@@ -270,9 +283,9 @@ QList<Problema> comprobar(const QList<EQUIPO> &equipos, const PCFutbolTemporadaR
         else if (n < MIN_JUGADORES_VISTO)
             aviso(QString("%1: sólo %2 jugadores (en el juego original ninguno tiene menos de %3)")
                       .arg(ne).arg(n).arg(MIN_JUGADORES_VISTO), false);
-        if (n > MAX_JUGADORES_VISTO)
-            aviso(QString("%1: %2 jugadores (el máximo en el juego original es %3; "
-                          "no se ha probado con más)").arg(ne).arg(n).arg(MAX_JUGADORES_VISTO), false);
+        if (n > MAX_JUGADORES_JUEGO)
+            grave(QString("%1: %2 jugadores. Con más de %3 el juego NO ARRANCA («DFG: id desconocido»; "
+                          "probado en el juego)").arg(ne).arg(n).arg(MAX_JUGADORES_JUEGO), false);
         if (n > 0)
         {
             bool hayPortero = false;

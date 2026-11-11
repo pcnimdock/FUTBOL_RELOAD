@@ -212,8 +212,10 @@ Reglas:
 
 ### 4.10 Reglas de las plantillas
 
-- Puesto en la alineación de 1 a N sin huecos, sin dorsales repetidos y de
-  16 a 33 jugadores.
+- Puesto en la alineación de 1 a N sin huecos y sin dorsales repetidos.
+  Como mucho 41 jugadores por equipo (con 42 el juego no arranca) y unas
+  340 Estrellas Mundiales (más, y la Liga Manager se cuelga al cargar).
+  Medido en el juego.
 - El puntero es la identidad del jugador y el nombre de su foto. La foto no
   es obligatoria.
 - Detalle en `docs/plantillas-y-csv.md`.

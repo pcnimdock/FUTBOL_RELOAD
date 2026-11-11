@@ -35,6 +35,12 @@ namespace PCFutbolPlantillas
     const int MAX_NOMBRE_LARGO_VISTO = 40;
     const int MAX_TEXTO = 255;          // límite del formato (1 byte de longitud)
 
+    // Límites medidos en el juego (4.5, DOSBox; ver docs/plantillas-y-csv.md)
+    const int MAX_JUGADORES_JUEGO = 41; // con 42 el juego no arranca («DFG: id desconocido»)
+    const int MAX_ESTRELLAS_PROBADO = 300; // 300 Estrellas: liga cargada y grabada entera
+    const int MAX_ESTRELLAS = 340;      // hacia 345-350 Liga Manager se cuelga al cargar
+                                        // (el tope baja si los nombres son largos)
+
     // Nombres de los códigos (para la ayuda y los informes)
     QStringList nombresPosicion();      // 0..3
     QStringList nombresDemarcacion();   // 0..18
@@ -79,7 +85,9 @@ namespace PCFutbolPlantillas
     };
     // Con 'real', también que sigan en su equipo los jugadores de los
     // partidos de la temporada real (si no, el juego no arranca).
-    QList<Problema> comprobar(const QList<EQUIPO> &equipos, const PCFutbolTemporadaReal *real = nullptr);
+    // Con 'estrellas', también el tamaño de las Estrellas Mundiales.
+    QList<Problema> comprobar(const QList<EQUIPO> &equipos, const PCFutbolTemporadaReal *real = nullptr,
+                              const QList<JUGADOR> *estrellas = nullptr);
     // Arregla alineaciones, dorsales repetidos, textos largos o con
     // caracteres no admitidos y códigos fuera de rango. Devuelve qué hizo.
     QStringList corregirAutomaticamente(QList<EQUIPO> &equipos);

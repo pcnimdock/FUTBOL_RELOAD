@@ -1,4 +1,6 @@
 #include "dialog_estrellas_mundiales.h"
+#include "pcfutbol_plantillas.h"
+#include <QMessageBox>
 #include "util_ventanas.h"
 #include "ui_dialog_estrellas_mundiales.h"
 #include <QFile>
@@ -118,6 +120,13 @@ void dialog_estrellas_mundiales::on_tableView_jugadores_doubleClicked(const QMod
 void dialog_estrellas_mundiales::on_btn_mas_jugador_clicked()
 {
     //se ha apretado para añadir un nuevo jugador a Estrellas Mundiales
+    if (eq.lista_jugadores.size() >= PCFutbolPlantillas::MAX_ESTRELLAS)
+    {
+        QMessageBox::warning(this, "Añadir jugador",
+            QString("Ya hay %1 Estrellas Mundiales: con más la Liga Manager se cuelga al cargar.")
+                .arg(PCFutbolPlantillas::MAX_ESTRELLAS));
+        return;
+    }
     JUGADOR j;
     j.NombreCorto="xxx";
     j.NombreLargo="xxx";

@@ -23,7 +23,8 @@ Código: `pcfutbol_plantillas.*` (reglas), `pcfutbol_csv.*`,
   repetidos (en los 235 equipos de la 4.5 y los 234 de la 4.0).
 - **Ningún equipo repite dorsal.**
 - Plantillas de **16** jugadores (los extranjeros) a **33** (el máximo
-  español). Por encima de 33 no se ha probado.
+  español) en el juego original. Límites medidos en el juego (ver abajo):
+  **41 jugadores por equipo** y unas **340 Estrellas Mundiales**.
 - El **puntero** del jugador da nombre a su foto (`MINIFOTO/J95xxxxx.DFG`) y
   es lo que usa el juego para identificarlo. Un jugador traspasado conserva
   el suyo; uno nuevo recibe el primero libre.
@@ -183,6 +184,33 @@ el `0xF9`. Cualquier «Salvar» alteraba así 42 equipos.
   `EQ959900.DBC`. Ahora la 4.5 se reconoce por `INFOFUT.EXE`,
   `ACTUALIZ.EXE` o `pcFut4.exe`.
 - **Importar sonidos** escribía sobre el juego sin copia. Ahora deja `.bak`.
+
+## Límites de jugadores (medidos en el juego, 4.5 en DOSBox)
+
+Probado copiando jugadores en el Real Madrid y en las Estrellas Mundiales
+(nombres «Mad34…», «Est34…»), con el programa de pruebas `prueba_grande`.
+
+| Prueba | Resultado |
+|---|---|
+| Real Madrid con 40 | Se ven los 40 en «Alineación», se juega el partido y la partida los graba todos |
+| Real Madrid con 41 | El juego arranca y la Liga Manager carga (también con nombres largos) |
+| Real Madrid con 42, 45, 50, 60 | **No arranca**: «Error en la aplicación. DFG: id desconocido (gráfico corrompido)», antes del menú principal. Da igual qué jugador se copie |
+| Estrellas con 50, 200, 300 | Liga cargada y grabada con todas (alguna sale en la lista de traspasos) |
+| Estrellas con 347 | La Liga Manager carga |
+| Estrellas con 348 a 600 | El menú principal sale, pero **la Liga Manager se cuelga** en la pantalla del logo al entrar |
+
+- **Por equipo el tope es de 41 jugadores**, y es por número: con nombres
+  largos 41 sigue arrancando.
+- **Las Estrellas no tienen un número fijo.** Con nombres cortos entran 348
+  y con nombres más largos fallan 340 (nombres de 45 letras). Parece un
+  tope de memoria de la Liga Manager que depende del número de jugadores y
+  de lo que ocupan sus nombres. 340 con nombres normales es seguro; 300 se
+  ha probado con una liga entera.
+- El editor no deja guardar sin aviso con más de 41 jugadores en un equipo
+  o más de 340 Estrellas, avisa a partir de 300 Estrellas, y los botones
+  «+» de la ficha no añaden por encima de esos topes.
+- Sin probar: la Liga Promanager, la Liga Arcade y jugar una temporada
+  entera con 41.
 
 ## CSV
 

@@ -1485,7 +1485,7 @@ bool MainWindow::comprobarPlantillas(bool antesDeGuardar)
     for (;;)
     {
         const QList<PCFutbolPlantillas::Problema> probs =
-            PCFutbolPlantillas::comprobar(lista_equipos, &temporadaReal);
+            PCFutbolPlantillas::comprobar(lista_equipos, &temporadaReal, &estrellas.list_jugador);
         QStringList graves, avisos;
         bool corregible = false;
         for (const auto &p : probs)

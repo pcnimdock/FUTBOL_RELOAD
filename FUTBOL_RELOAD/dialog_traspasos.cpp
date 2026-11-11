@@ -141,9 +141,9 @@ void DialogTraspasos::llenarLista(int lado)
     if (n < MIN_JUGADORES_VISTO)
         info += QString("<br><span style='color:#e0b34a'>⚠ menos de %1 (ningún equipo original tiene menos)</span>")
                     .arg(MIN_JUGADORES_VISTO);
-    if (n > MAX_JUGADORES_VISTO)
-        info += QString("<br><span style='color:#e0b34a'>⚠ más de %1 (máximo del juego original; sin probar)</span>")
-                    .arg(MAX_JUGADORES_VISTO);
+    if (n > MAX_JUGADORES_JUEGO)
+        info += QString("<br><span style='color:#e05a4a'>✖ más de %1: el juego no arranca</span>")
+                    .arg(MAX_JUGADORES_JUEGO);
     if (n > 0 && porteros == 0)
         info += "<br><span style='color:#e0b34a'>⚠ sin portero</span>";
     m_info[lado]->setText(info);
