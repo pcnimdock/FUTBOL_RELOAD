@@ -11,7 +11,7 @@ grabadas y la partida guardada antes y después de la jornada 1.
 | Táctica por defecto de cada equipo | Dentro de su `DBDAT/EQ95xxxx.DBC` (176 bytes) | El editor (base de datos) |
 | Tácticas grabadas con «Grabar táctica» | `TACTICS/TACTIC.000` … `TACTIC.199` (244 bytes) | El juego |
 | Partida de Liga Manager («Grabar Liga») | `TACTICS/LIGA.0` … `LIGA.9` (~120 KB) | El juego |
-| Partida de Promanager | `TACTICS/PROLIGA.nnn` y la ficha del mánager en `PLAYERS/PLAYnnnn.DAT` | El juego (por las cadenas de `PROMANAG.DAT`; sin probar) |
+| Partida de Promanager | `TACTICS/PROLIGA.nnn` (una por liga, se sobrescribe al grabar) y la ficha del mánager en `PLAYERS/PLAYnnnn.DAT` | El juego (formato abajo) |
 | Liga en curso al salir | `ACTLIG.DAT` (se borra al empezar otra liga) y `COMFILE.DAT` | El juego |
 
 Las tácticas se editan dentro del juego (Entrenador → Tácticas) y se pueden
@@ -172,9 +172,76 @@ Todos los equipos empiezan en 25/25/25, así que en el juego solo se puede
 redistribuir. Con 50/0/10 el juego **se cuelga al abrir Tácticas** (probado).
 Además, el cuelgue borra `COMFILE.DAT` y el juego ya no arranca hasta reponerlo.
 
+### Bajas: cómo cuenta el juego las jornadas
+
+Lo hace `PCMANAG.DAT` en `0x33263` (pantalla) y `0x37d32` (cada jornada):
+
+- **Jornadas que faltan** = `NJornIncid + 1 − (jornada actual − JornIncid)`.
+  La jornada actual es el 2.º de los 8 bytes de estado.
+- Si ya se ha cumplido, `Incidencias` pasa a 0. Mientras `Incidencias` sea 0
+  no hay baja, aunque los otros bytes tengan basura.
+- Con 5 amarillas en liga (2 en copa) pone `Incidencias` = 4 (7 en copa),
+  una jornada de sanción, y resta las amarillas.
+- Tipos: 1 = lesión (cruz roja); los demás, sanciones.
+
+Comprobado: Raúl (1,1,1) y Palacios (1,0,2) salen con «2» en el juego, y el
+editor da 2.
+
+### Estrellas Mundiales (bloque 9900)
+
+Son las estrellas extranjeras (Batistuta, Baggio, Ronaldo…). Su procedencia
+es 9900 seguida del **nombre de su club en texto** (Fiorentina, A.C. Milan…).
+Cuando un equipo ficha a una estrella, conserva esa procedencia y su equipo
+actual pasa a ser el nuevo. Maldini está además en la lista de traspasos.
+
+### Promanager (`TACTICS/PROLIGA.nnn`)
+
+Formato sacado de `PROMANAG.DAT` y comprobado leyendo una partida entera
+(43 bloques):
+
+- **Cabecera:** fecha (7 u16), **8 huecos de mánager** (u16 nº y su nombre,
+  o FFFF si está vacío) y la jornada.
+- **Igual que Liga Manager:** copyright, estado, calendarios, copas y
+  marca 5 con 19 u16.
+- **No hay lista de traspasos.** Viene el orden de los equipos y después los
+  equipos (`1` + equipo, `2` + jugador…, `0`) y la cola.
+- **Equipo** (`0x26453`):
+  - 5 textos (con el presidente);
+  - u16 id, u16, 3 u8, 3 u16 y 2 u32;
+  - nombre de la táctica y táctica;
+  - u16 y u16 **número de jugadores**;
+  - entrenador (u16 + texto);
+  - u16: si vale 1 siguen **48 registros de 84 bytes** (solo en el equipo
+    del mánager humano);
+  - 7 double: [0] presupuesto y **[1] caja**;
+  - 9 u8, 11 u16 y 4 u16.
+  - No guarda entrenamiento.
+- **Jugador** (`0x36173`):
+  - puntero, nombres y u16 de procedencia (texto si es 9900);
+  - 7 u8 (posición, …);
+  - 30 u8: extranjero, piel, pelo, dorsal, **alineación** y 5 grupos de
+    incidencias, que empiezan en +8, +14, +18, +22 y +26 (en +13, el minuto
+    de la última tarjeta);
+  - u16 **equipo actual**, u16 y u16 **nº de orden** (de 1 a N);
+  - double precio, double y u32;
+  - 11 u8: VE, RE, AG y CA; 4 aptitudes; **MO, EF y EN** (moral,
+    efectividad y energía, las columnas de la Alineación del Promanager).
+- **Cuidado al probar:** el juego no cierra el fichero hasta que se acepta el
+  mensaje «La liga actual ha sido grabada». Si se cierra DOSBox antes, queda a
+  medias (múltiplo de 4 KB) y al cargarla el juego se cuelga.
+
+**Ficha del mánager** (`PLAYERS/PLAYnnnn.DAT`, 83 bytes):
+
+- u16 y el copyright;
+- el nombre con XOR 0xAA, en un campo de 20 bytes;
+- la **clave**, con XOR 0xC4, 0xC5, 0xC6… según la posición, terminada en un
+  0 sin cifrar. «abc» se guarda como `a5 a7 a5 00`. La del mánager «prueba»
+  que trae el juego es «w».
+
 ### Editor de partidas (botón «Partida guardada…»)
 
-`pcfutbol_partida.*` y `dialog_partida.*`. La primera vez deja copia `.bak` y,
+`pcfutbol_partida.*` y `dialog_partida.*`. Abre partidas de **Liga Manager y
+de Promanager** (detecta cuál es). La primera vez deja copia `.bak` y,
 antes de escribir, comprueba que la partida se puede volver a leer.
 
 - **En su sitio** (el fichero no cambia de tamaño):
@@ -193,7 +260,13 @@ antes de escribir, comprueba que la partida se puede volver a leer.
     - se actualiza el número de jugadores de los dos equipos;
     - si está en venta, su copia en la lista de traspasos pasa al destino;
     - límites: origen con al menos 16 jugadores y destino con 33 como mucho.
-      No se mueve nada desde ni hacia el bloque 9900.
+      Se pueden fichar Estrellas Mundiales (conservan su club de
+      procedencia), pero no mandar jugadores allí; el juego tampoco lo hace.
+  - **Añadir jugador:** con identidad, dorsal y puesto libres, sin bajas, o
+    copiando sus datos de un jugador de la base de datos del editor (el
+    precio de la partida es el del DBC × 1 millón). En Promanager se clona un
+    jugador del equipo para los campos sin identificar.
+- En Promanager no hay entrenamiento ni lista de traspasos.
 
 Comprobado en el juego (10 y 11/11/2026):
 
@@ -211,6 +284,21 @@ Comprobado en el juego (10 y 11/11/2026):
 - Raúl, lesionado (cruz «2»), queda sano tras «Quitar lesión y sanción», y la
   media del equipo sube de 75 a 82.
 
+Comprobado también en el juego (11/11/2026):
+
+- **Liga Manager:**
+  - Batistuta, fichado de las Estrellas, y un jugador nuevo («Novato»)
+    aparecen en la plantilla con sus medias;
+  - se juega la jornada y el juego los vuelve a grabar bien;
+  - Raúl, lesionado, queda sano tras «Quitar lesión y sanción».
+- **Promanager (Villarreal):**
+  - caja de 999 millones en «Caja»;
+  - VE 99 en la Alineación, «Renombrado» en el puesto 13;
+  - Hierro traído del Real Madrid y «Novato» en los puestos 23 y 24, con su
+    energía y medias;
+  - se jugó la jornada y el juego grabó la partida con todo intacto;
+  - quitar la baja a Puche II elimina el icono y el aviso de bajas.
+
 ### Consecuencia para el editor (comprobado en el juego)
 
 Se cambió «Buyo» por «Bayo» solo dentro de `LIGA.0` y se cargó la partida:
@@ -226,10 +314,10 @@ partida guardada, no de los DBC.** Por tanto:
 
 ## Pendiente
 
-- Identificar los otros double del equipo y el significado exacto de
-  JornIncid y NJornIncid (cómo calcula el juego el número que enseña).
-- Mover jugadores desde o hacia el bloque 9900 (jugadores sin equipo), y
-  añadir jugadores nuevos.
-- Promanager (`PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`).
+- Identificar los otros double del equipo.
+- En Promanager: el significado de los 48 registros del mánager, la
+  demarcación y el resto de bytes del jugador.
+- Un editor de la ficha del mánager (ver o cambiar la clave); el formato ya
+  se conoce.
 - Promanager: `PROLIGA.nnn` y `PLAYERS/PLAYnnnn.DAT`, por probar.
 - Ficheros de muestra en `~/pcfutbol_trabajo/test3/partidas/` (fuera del repositorio).

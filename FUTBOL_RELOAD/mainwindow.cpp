@@ -93,7 +93,7 @@ MainWindow::MainWindow(QWidget *parent)
     layoutBotonesImagenes->addWidget(btnSonidos);
     QPushButton *btnPartida = new QPushButton(QIcon(":/icons/import.svg"), "Partida guardada…", this);
     btnPartida->setObjectName("btnPartidaGuardada");
-    btnPartida->setToolTip("Editar una partida de Liga Manager en curso (TACTICS/LIGA.0 … LIGA.9)");
+    btnPartida->setToolTip("Editar una partida en curso de Liga Manager (TACTICS/LIGA.n) o Promanager (TACTICS/PROLIGA.nnn)");
     layoutBotonesImagenes->addWidget(btnPartida);
     connect(btnPartida, &QPushButton::clicked, this, &MainWindow::abrirPartida);
 
@@ -1286,7 +1286,7 @@ void MainWindow::abrirPartida()
     const QString juego = rutaJuegoActual();
     const QString tactics = PCFutbolTactica::carpetaTactics(juego);
     const QString ruta = QFileDialog::getOpenFileName(this, "Partida de Liga Manager",
-        tactics.isEmpty() ? juego : tactics, "Partidas de Liga Manager (LIGA.* liga.*);;Todos (*)");
+        tactics.isEmpty() ? juego : tactics, "Partidas de Liga Manager y Promanager (LIGA.* liga.* PROLIGA.* proliga.*);;Todos (*)");
     if (ruta.isEmpty()) return;
     PCFutbolPartida p;
     QString err;
@@ -1295,7 +1295,7 @@ void MainWindow::abrirPartida()
         QMessageBox::warning(this, "Partida guardada", err);
         return;
     }
-    DialogPartida d(ruta, p, juego, this);
+    DialogPartida d(ruta, p, juego, this, hayDatosCargados() ? &lista_equipos : nullptr);
     d.exec();
 }
 

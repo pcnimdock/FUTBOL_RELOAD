@@ -262,6 +262,7 @@ Commits principales, del más reciente al más antiguo:
 
 | Commit | Qué |
 |---|---|
+| (11/11/2026, tarde) | Partidas guardadas: añadir jugadores, fichar Estrellas Mundiales, bajas con las jornadas que enseña el juego y **partidas de Promanager** (`PROLIGA.nnn`: caja, táctica, jugadores, nombres, traspasos, altas y bajas). Formato de la ficha del mánager (clave). Todo verificado en el juego |
 | (11/11/2026) | Partidas guardadas: cambiar nombres, traspasar jugadores entre equipos y quitar lesiones/sanciones. Identificados todos los campos del jugador. Verificado en el juego (también comprando desde el juego al jugador traspasado) |
 | (10/11/2026, noche) | Botón «Partida guardada…»: editar una partida de Liga Manager en curso (caja, entrenamiento y táctica de cada equipo; VE/RE/AG/CA, EN y precio de cada jugador). Formato completo de `LIGA.n`. Verificado en el juego. Ver `docs/partidas-y-tacticas.md` |
 | (10/11/2026, noche) | Botón «Táctica…» en la ficha del equipo: campo de 15×9 con zona, defensa y ataque de cada titular, las 6 formaciones del juego, y cargar/grabar `TACTICS/TACTIC.nnn`. Verificado en el juego. Ver `docs/partidas-y-tacticas.md` |

@@ -4,7 +4,8 @@
 /*
  * pcfutbol_partida.h / .cpp
  *
- * Partidas guardadas de Liga Manager (TACTICS/LIGA.0 … LIGA.9), PC Fútbol 4.5.
+ * Partidas guardadas de Liga Manager (TACTICS/LIGA.0 … LIGA.9) y de
+ * Promanager (TACTICS/PROLIGA.nnn), PC Fútbol 4.5.
  * Formato sacado de PCMANAG.DAT (cabecera en 0x13600; estado en 0x101e0;
  * equipo en 0x24c07; jugador en 0x322e1). Ver docs/partidas-y-tacticas.md.
  *
@@ -39,16 +40,30 @@ public:
         double valor = 0;
         int aptitud[4] = {0, 0, 0, 0}; // técnica, remate, pase, tiro (0/1)
         // Bajas: 5 competiciones × [Incidencias, JornIncid, NJornIncid,
-        // NAmarillas] (nombres de PCMANAG.DAT). Tipo 1 = lesión.
+        // NAmarillas] (nombres de PCMANAG.DAT, 0x31bac…0x31d20).
+        // Incidencias 0 = ninguna (lo demás no cuenta), 1 = lesión, otro =
+        // sanción (4 = 5 amarillas en liga, 7 = 2 en copa). Jornadas que
+        // faltan, como las enseña el juego (0x33263):
+        //     NJornIncid + 1 - (jornada actual - JornIncid)
         bool lesionado = false;
-        int jornadasBaja = 0;
+        bool sancionado = false;
+        int jornadasBaja = 0;          // las que enseña el juego (la mayor)
         int offIncidencias = -1;
+        // Dónde empieza cada uno de los 5 grupos de 4 bytes de incidencias
+        // (en Liga Manager van seguidos; en Promanager hay 2 bytes tras el primero)
+        int offGrupo[5] = {-1, -1, -1, -1, -1};
         bool extranjero = false;
+        int demarcacion = 0, piel = 0, pelo = 0;
+        int procedencia = 0;           // equipo de procedencia (9900 = Estrellas, con su club en texto)
+        QString clubProcedencia;
         // posiciones en el fichero
         int offMedias = -1, offEnergia = -1, offValor = -1;
         int inicio = -1, fin = -1;     // registro completo (sin la marca 2)
         // u16 equipo de procedencia, u16 equipo actual, 7 bytes de datos
         int offEquipo = -1, offEquipo2 = -1, offDatos = -1;
+        int offDorsal = -1, offAlineacion = -1;
+        int offOrden = -1;             // Promanager: nº de orden en la plantilla (1..N)
+        int offAptitudes = -1;
     };
     struct Equipo
     {
@@ -61,6 +76,7 @@ public:
         bool tieneTactica = false;
         QList<Jugador> jugadores;
         int offCaja = -1, offEntrenamiento = -1, offTactica = -1;
+        int offNumJugadores = -1;      // u16 con el número de jugadores
         int inicio = -1, fin = -1;     // registro del equipo (sin la marca 1)
     };
 
@@ -72,8 +88,12 @@ public:
     const QByteArray &datos() const { return m_datos; }
     QString jugadorHumano() const { return m_jugador; }
     int jornada() const { return m_jornada; }
+    int jornadaActual() const { return m_jornadaActual; }   // la que usa el juego para las bajas
     QString fecha() const { return m_fecha; }
     int tipo() const { return m_tipo; }
+    // Promanager (TACTICS/PROLIGA.nnn) o Liga Manager (TACTICS/LIGA.n)
+    bool esPromanager() const { return m_pro; }
+    QStringList managers() const { return m_managers; }
 
     QList<Equipo> &equipos() { return m_equipos; }
     const QList<Equipo> &equipos() const { return m_equipos; }
@@ -93,6 +113,14 @@ public:
     // los dos equipos y su copia en la lista de traspasos si la tiene.
     // *info describe lo hecho.
     bool traspasar(int origen, int jugador, int destino, QString *info, QString *error);
+    // Añade un jugador nuevo al final de la plantilla. De 'datos' se usan
+    // nombres, posición, demarcación, extranjero, piel, pelo, medias,
+    // aptitudes, energía y precio; el puntero (identidad) se elige libre si
+    // datos.puntero es 0 o ya está usado, el dorsal y el puesto también.
+    bool anadirJugador(int equipo, const Jugador &datos, QString *info, QString *error);
+    // Primer puntero que no usa ningún jugador de la partida
+    quint16 punteroLibre() const;
+
     // Deja al jugador sin lesión, sin sanción y sin amarillas acumuladas en
     // las 5 competiciones (también su copia en la lista de traspasos).
     void quitarBajas(int equipo, int jugador);
@@ -120,7 +148,10 @@ private:
     int m_inicioEquipos = -1, m_inicioCola = -1;
     QByteArray m_datos, m_original;
     QString m_jugador, m_fecha;
-    int m_jornada = 0, m_tipo = 0;
+    int m_jornada = 0, m_tipo = 0, m_jornadaActual = 0;
+    bool m_pro = false;
+    QStringList m_managers;
+    bool cargarCuerpo(int inicio, QString *error);
     QList<Equipo> m_equipos;
 };
 

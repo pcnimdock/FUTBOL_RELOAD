@@ -9,6 +9,7 @@
 
 #include <QDialog>
 #include "pcfutbol_partida.h"
+#include "equipo.h"
 
 class QListWidget;
 class QTableWidget;
@@ -21,8 +22,10 @@ class DialogPartida : public QDialog
 {
     Q_OBJECT
 public:
+    // bd: base de datos cargada en el editor (para copiar jugadores); puede ser nullptr
     DialogPartida(const QString &ruta, const PCFutbolPartida &partida,
-                  const QString &carpetaJuego, QWidget *parent = nullptr);
+                  const QString &carpetaJuego, QWidget *parent = nullptr,
+                  const QList<EQUIPO> *bd = nullptr);
 
 private:
     void llenarEquipos();
@@ -33,10 +36,12 @@ private:
     void renombrar();
     void traspasar();
     void quitarBajas(bool todos);
+    void anadirJugador();
     void guardar();
     void reject() override;
 
     QString m_ruta, m_carpetaJuego;
+    const QList<EQUIPO> *m_bd = nullptr;
     PCFutbolPartida m_p;
     int m_actual = -1;
     bool m_cargando = false;

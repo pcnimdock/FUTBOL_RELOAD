@@ -1,6 +1,7 @@
 #include "pcfutbol_partida.h"
 
 #include <QFile>
+#include <QSet>
 #include <QtEndian>
 #include <cstring>
 
@@ -41,7 +42,7 @@ struct Lector
 
 const int ID_ESTRELLAS = 9900;      // 0x26AC: jugadores sueltos («SEGUNDA B»)
 
-void leerJugador(Lector &r, PCFutbolPartida::Jugador *j)
+void leerJugador(Lector &r, PCFutbolPartida::Jugador *j, int jornadaActual)
 {
     j->inicio = r.o;
     j->puntero = quint16(r.u16());
@@ -49,7 +50,8 @@ void leerJugador(Lector &r, PCFutbolPartida::Jugador *j)
     j->nombreLargo = r.texto();
     j->offEquipo = r.o;             // equipo de procedencia (el juego lo pone al fichar)
     const int equipo = r.u16();
-    if (equipo == ID_ESTRELLAS) r.texto();
+    j->procedencia = equipo;
+    if (equipo == ID_ESTRELLAS) j->clubProcedencia = r.texto();
     j->offEquipo2 = r.o;            // equipo actual
     r.u16();
     const int b0 = r.o;
@@ -58,20 +60,26 @@ void leerJugador(Lector &r, PCFutbolPartida::Jugador *j)
     if (!r.mal)
     {
         j->posicion = quint8(r.d[b0]);
+        j->demarcacion = quint8(r.d[b0 + 1]);
         j->extranjero = quint8(r.d[b0 + 2]) != 0;
+        j->piel = quint8(r.d[b0 + 3]);
+        j->pelo = quint8(r.d[b0 + 4]);
         j->dorsal = quint8(r.d[b0 + 5]);
         j->alineacion = quint8(r.d[b0 + 6]);
     }
+    j->offDorsal = b0 + 5;
+    j->offAlineacion = b0 + 6;
     j->offIncidencias = r.o;        // 5 × [Incidencias, JornIncid, NJornIncid, NAmarillas]
+    for (int c = 0; c < 5; c++) j->offGrupo[c] = r.o + 4 * c;
     if (r.hay(20))
         for (int c = 0; c < 5; c++)
         {
             const int o = r.o + 4 * c;
-            if (quint8(r.d[o]) == 1 && quint8(r.d[o + 2]) > 0)
-            {
-                j->lesionado = true;
-                j->jornadasBaja = qMax(j->jornadasBaja, int(quint8(r.d[o + 2])));
-            }
+            const int tipo = quint8(r.d[o]);
+            if (tipo == 0) continue;
+            (tipo == 1 ? j->lesionado : j->sancionado) = true;
+            const int faltan = quint8(r.d[o + 2]) + 1 - (jornadaActual - quint8(r.d[o + 1]));
+            j->jornadasBaja = qMax(j->jornadasBaja, faltan);
         }
     r.saltar(20);
     r.saltar(2);
@@ -79,10 +87,117 @@ void leerJugador(Lector &r, PCFutbolPartida::Jugador *j)
     j->valor = r.f64();
     j->offMedias = r.o;
     for (int i = 0; i < 4; i++) j->media[i] = r.u8();
+    j->offAptitudes = r.o;
     for (int i = 0; i < 4; i++) j->aptitud[i] = r.u8();
     j->offEnergia = r.o;
     j->energia = r.u8();
     j->fin = r.o;
+}
+
+// Jugador de Promanager (PROMANAG.DAT 0x36173). Campos cruzados con el DBC
+// en 1.027 jugadores: 7 u8 (posición, …), 30 u8 (…, extranjero, piel, pelo,
+// dorsal, alineación, …), u16 equipo actual, u16, u16 nº de orden (1..N),
+// double precio, double, u32, 11 u8 (VE RE AG CA, 4 aptitudes, 3 más; el
+// último es la energía).
+void leerJugadorPro(Lector &r, PCFutbolPartida::Jugador *j, int jornadaActual)
+{
+    j->inicio = r.o;
+    j->puntero = quint16(r.u16());
+    j->nombreCorto = r.texto();
+    j->nombreLargo = r.texto();
+    j->offEquipo = r.o;
+    const int equipo = r.u16();
+    j->procedencia = equipo;
+    if (equipo == ID_ESTRELLAS) j->clubProcedencia = r.texto();
+    const int b7 = r.o;
+    r.saltar(7);
+    const int b30 = r.o;
+    r.saltar(30);
+    if (!r.mal)
+        for (int g : {8, 14, 18, 22, 26})
+        {
+            const int o = b30 + g;
+            const int tipo = quint8(r.d[o]);
+            if (tipo == 0) continue;
+            (tipo == 1 ? j->lesionado : j->sancionado) = true;
+            const int faltan = quint8(r.d[o + 2]) + 1 - (jornadaActual - quint8(r.d[o + 1]));
+            j->jornadasBaja = qMax(j->jornadasBaja, faltan);
+        }
+    if (!r.mal)
+    {
+        j->posicion = quint8(r.d[b7]);
+        j->extranjero = quint8(r.d[b30 + 1]) != 0;
+        j->piel = quint8(r.d[b30 + 2]);
+        j->pelo = quint8(r.d[b30 + 3]);
+        j->dorsal = quint8(r.d[b30 + 4]);
+        j->alineacion = quint8(r.d[b30 + 5]);
+    }
+    // Incidencias por competición: 5 grupos de [Incidencias, JornIncid,
+    // NJornIncid, NAmarillas] en b30+8, +14, +18, +22 y +26 (entre el
+    // primero y el segundo, 2 bytes: el 13 es el minuto de la última tarjeta)
+    const int grupos[5] = {8, 14, 18, 22, 26};
+    for (int c = 0; c < 5; c++) j->offGrupo[c] = b30 + grupos[c];
+    j->offIncidencias = b30 + 8;
+    j->offDatos = b7;
+    j->offDorsal = b30 + 4;
+    j->offAlineacion = b30 + 5;
+    j->offEquipo2 = r.o;            // equipo actual
+    r.u16();
+    r.u16();
+    j->offOrden = r.o;
+    r.u16();
+    j->offValor = r.o;
+    j->valor = r.f64();
+    r.f64();
+    r.u32();
+    j->offMedias = r.o;
+    for (int i = 0; i < 4; i++) j->media[i] = r.u8();
+    j->offAptitudes = r.o;
+    for (int i = 0; i < 4; i++) j->aptitud[i] = r.u8();
+    r.saltar(2);
+    j->offEnergia = r.o;
+    j->energia = r.u8();
+    j->fin = r.o;
+}
+
+// Equipo de Promanager (PROMANAG.DAT 0x26453): 5 textos, 2 u16, 3 u8, 3 u16,
+// 2 u32, táctica, u16, u16 nº de jugadores, entrenador (u16 + texto), u16
+// (1 = 48 registros de 84 bytes del mánager humano), 7 double ([1] caja),
+// 9 u8, 11 u16, 4 u16. No lleva entrenamiento.
+void leerEquipoPro(Lector &r, PCFutbolPartida::Equipo *e)
+{
+    e->inicio = r.o;
+    e->nombreLargo = r.texto();
+    e->nombreCorto = r.texto();
+    r.texto();                      // mayúsculas
+    r.texto();                      // presidente
+    e->estadio = r.texto();
+    e->id = r.u16();
+    r.u16();
+    r.saltar(3);
+    r.saltar(3 * 2 + 2 * 4);
+    e->nombreTactica = r.texto();
+    e->offTactica = r.o;
+    if (r.hay(PCFutbolTactica::TAM))
+        e->tieneTactica = PCFutbolTactica::deBytes(r.d.mid(r.o, PCFutbolTactica::TAM), &e->tactica);
+    r.saltar(PCFutbolTactica::TAM);
+    r.u16();
+    e->offNumJugadores = r.o;
+    r.u16();
+    r.u16();
+    e->entrenador = r.texto();
+    if (r.u16() != 0) r.saltar(48 * 84);
+    const int offDobles = r.o;
+    r.saltar(7 * 8);
+    e->offCaja = offDobles + 8;
+    if (!r.mal)
+    {
+        Lector c(r.d);
+        c.o = e->offCaja;
+        e->caja = c.f64();
+    }
+    r.saltar(9 + 11 * 2 + 4 * 2);
+    e->fin = r.o;
 }
 
 void leerEquipo(Lector &r, PCFutbolPartida::Equipo *e)
@@ -107,7 +222,9 @@ void leerEquipo(Lector &r, PCFutbolPartida::Equipo *e)
     r.saltar(PCFutbolTactica::TAM);
     e->offEntrenamiento = r.o;
     for (int i = 0; i < 3; i++) e->entrenamiento[i] = r.u16();
-    r.saltar(2 * 2);
+    r.saltar(2);
+    e->offNumJugadores = r.o;
+    r.saltar(2);
     const int offDobles = r.o;
     r.saltar(24 * 8);
     e->offCaja = offDobles + 8;     // el segundo: lo que hay en caja
@@ -142,22 +259,49 @@ bool PCFutbolPartida::cargarDatos(const QByteArray &datos, QString *error)
     m_copias.clear();
     Lector r(m_datos);
     auto fallo = [&](const QString &donde) {
-        if (error) *error = QString("No es una partida de Liga Manager de PC Fútbol 4.5 o está dañada "
+        if (error) *error = QString("No es una partida de Liga Manager o Promanager de PC Fútbol 4.5, "
+                                    "o está dañada o incompleta "
                                     "(%1, posición %2).").arg(donde).arg(r.o);
         return false;
     };
 
-    // Cabecera
+    // Cabecera: fecha (7 u16) y después
+    //   Liga Manager: u8 tipo, texto jugador, u8 jornada
+    //   Promanager:   8 × (u16 nº de mánager, texto si no es FFFF), u8 jornada
     int f[7];
     for (int &v : f) v = r.u16();
     m_fecha = QString("%1/%2/%3 %4:%5").arg(f[2], 2, 10, QChar('0')).arg(f[1], 2, 10, QChar('0'))
                   .arg(f[0]).arg(f[6], 2, 10, QChar('0')).arg(f[5], 2, 10, QChar('0'));
+    const int trasFecha = r.o;
+    auto copyrightEn = [&](int o) {
+        return o >= 0 && o + 0x46 <= m_datos.size() && m_datos.mid(o, 0x46).contains("DINAMIC");
+    };
+    m_pro = false;
+    m_managers.clear();
     m_tipo = r.u8();
     m_jugador = r.texto();
     m_jornada = r.u8();
-    if (r.mal || r.o + 0x46 > m_datos.size() || !m_datos.mid(r.o, 0x46).contains("DINAMIC"))
-        return fallo("cabecera");
+    if (r.mal || !copyrightEn(r.o))
+    {
+        Lector p(m_datos);
+        p.o = trasFecha;
+        QStringList mans;
+        for (int k = 0; k < 8; k++)
+        {
+            const int id = p.u16();
+            if (id != 0xFFFF) mans << p.texto();
+        }
+        const int jornada = p.u8();
+        if (p.mal || !copyrightEn(p.o)) { r.o = trasFecha; return fallo("cabecera"); }
+        m_pro = true;
+        m_managers = mans;
+        m_jugador = mans.join(", ");
+        m_jornada = jornada;
+        m_tipo = 0;
+        r.o = p.o;
+    }
     r.saltar(0x46);
+    if (r.hay(8)) m_jornadaActual = quint8(m_datos[r.o + 1]);
     r.saltar(8);
     // Calendarios: Primera 45 × 11 partidos, Segunda 38 × 10, de 4 bytes
     r.saltar(45 * 11 * 4 + 38 * 10 * 4);
@@ -177,14 +321,15 @@ bool PCFutbolPartida::cargarDatos(const QByteArray &datos, QString *error)
     if (r.u16() != 5) return fallo("tablas");
     r.saltar(19 * 2);
     // Lista de traspasos: [0, u16, double, u16, double, jugador]… FFFF
-    for (int n = 0;; n++)
+    // (el Promanager no la tiene)
+    for (int n = 0; !m_pro; n++)
     {
         const int m = r.u16();
         if (m == 0xFFFF) break;
         if (m != 0 || n > 2000 || r.mal) return fallo("lista de traspasos");
         r.u16(); r.f64(); r.u16(); r.f64();
         Jugador j;
-        leerJugador(r, &j);
+        leerJugador(r, &j, m_jornadaActual);
         if (!r.mal)
         {
             Lector q(m_datos);
@@ -199,12 +344,12 @@ bool PCFutbolPartida::cargarDatos(const QByteArray &datos, QString *error)
     for (int k = 0; k < 60; k++)
     {
         Equipo e;
-        leerEquipo(r, &e);
+        if (m_pro) leerEquipoPro(r, &e); else leerEquipo(r, &e);
         int m;
         while ((m = r.u16()) == 2 && !r.mal)
         {
             Jugador j;
-            leerJugador(r, &j);
+            if (m_pro) leerJugadorPro(r, &j, m_jornadaActual); else leerJugador(r, &j, m_jornadaActual);
             e.jugadores << j;
         }
         if (r.mal) return fallo("equipo " + e.nombreCorto);
@@ -429,10 +574,11 @@ bool PCFutbolPartida::traspasar(int origen, int jugador, int destino, QString *i
         return fallo("Equipo o jugador no válido.");
     const Equipo &eo = m_equipos[origen], &ed = m_equipos[destino];
     if (origen == destino) return fallo("El jugador ya está en ese equipo.");
-    if (eo.id == ID_ESTRELLAS || ed.id == ID_ESTRELLAS)
-        return fallo("Los jugadores sin equipo (Estrellas / Segunda B) se guardan de otra forma; "
-                     "de momento no se pueden mover.");
-    if (eo.jugadores.size() - 1 < MIN_PLANTILLA)
+    const bool desdeEstrellas = eo.id == ID_ESTRELLAS;
+    if (ed.id == ID_ESTRELLAS)
+        return fallo("Las Estrellas Mundiales no son un equipo de la liga: el juego nunca vende "
+                     "jugadores allí, así que el editor tampoco.");
+    if (!desdeEstrellas && eo.jugadores.size() - 1 < MIN_PLANTILLA)
         return fallo(QString("%1 se quedaría con %2 jugadores (mínimo %3).")
                          .arg(eo.nombreCorto).arg(eo.jugadores.size() - 1).arg(MIN_PLANTILLA));
     if (ed.jugadores.size() + 1 > MAX_PLANTILLA)
@@ -457,7 +603,8 @@ bool PCFutbolPartida::traspasar(int origen, int jugador, int destino, QString *i
     for (const CopiaTraspaso &c : m_copias)
         if (c.puntero == jm.puntero && c.equipo == eo.id)
         {
-            ponerU16(m_datos, c.offEquipo, ed.id);
+            // una estrella conserva su procedencia (9900 + club en texto)
+            if (!desdeEstrellas) ponerU16(m_datos, c.offEquipo, ed.id);
             ponerU16(m_datos, c.offEquipo2, ed.id);
             copias++;
         }
@@ -466,10 +613,12 @@ bool PCFutbolPartida::traspasar(int origen, int jugador, int destino, QString *i
     QByteArray movido = m_datos.mid(jm.inicio, jm.fin - jm.inicio);
     // Como hace el juego al fichar: el primer u16 queda con el equipo de
     // procedencia y el segundo con el equipo actual
-    ponerU16(movido, jm.offEquipo - jm.inicio, eo.id);
+    // (una estrella ya tiene procedencia 9900 con su club: se deja igual)
+    if (!desdeEstrellas) ponerU16(movido, jm.offEquipo - jm.inicio, eo.id);
     ponerU16(movido, jm.offEquipo2 - jm.inicio, ed.id);
-    movido[jm.offDatos - jm.inicio + 5] = char(dorsal);
-    movido[jm.offDatos - jm.inicio + 6] = char(alineacion);
+    movido[jm.offDorsal - jm.inicio] = char(dorsal);
+    movido[jm.offAlineacion - jm.inicio] = char(alineacion);
+    if (jm.offOrden >= 0) ponerU16(movido, jm.offOrden - jm.inicio, alineacion);
 
     QList<QList<QByteArray>> js;
     QList<QByteArray> cs;
@@ -477,7 +626,7 @@ bool PCFutbolPartida::traspasar(int origen, int jugador, int destino, QString *i
     {
         const Equipo &e = m_equipos[k];
         QByteArray cab = m_datos.mid(e.inicio, e.fin - e.inicio);
-        const int offNum = e.offEntrenamiento - e.inicio + 8;     // nº de jugadores
+        const int offNum = e.offNumJugadores - e.inicio;          // nº de jugadores
         if (k == origen) ponerU16(cab, offNum, e.jugadores.size() - 1);
         if (k == destino) ponerU16(cab, offNum, e.jugadores.size() + 1);
         cs << cab;
@@ -488,7 +637,15 @@ bool PCFutbolPartida::traspasar(int origen, int jugador, int destino, QString *i
             const Jugador &j = e.jugadores[i];
             QByteArray r = m_datos.mid(j.inicio, j.fin - j.inicio);
             if (k == origen && j.alineacion > jm.alineacion)
-                r[j.offDatos - j.inicio + 6] = char(j.alineacion - 1);
+                r[j.offAlineacion - j.inicio] = char(j.alineacion - 1);
+            if (k == origen && j.offOrden >= 0)
+            {
+                // Promanager: el nº de orden también va de 1 a N sin huecos
+                Lector q(m_datos);
+                q.o = j.offOrden;
+                const int orden = q.u16(), ordenMovido = [&]() { Lector z(m_datos); z.o = jm.offOrden; return z.u16(); }();
+                if (orden > ordenMovido) ponerU16(r, j.offOrden - j.inicio, orden - 1);
+            }
             l << r;
         }
         if (k == destino) l << movido;
@@ -512,11 +669,131 @@ void PCFutbolPartida::quitarBajas(int equipo, int jugador)
     if (equipo < 0 || equipo >= m_equipos.size() || jugador < 0 || jugador >= m_equipos[equipo].jugadores.size())
         return;
     Jugador &j = m_equipos[equipo].jugadores[jugador];
-    if (j.offIncidencias < 0) return;
-    for (int i = 0; i < 20; i++) m_datos[j.offIncidencias + i] = 0;
+    for (int c = 0; c < 5; c++)
+        if (j.offGrupo[c] >= 0)
+            for (int i = 0; i < 4; i++) m_datos[j.offGrupo[c] + i] = 0;
     for (const CopiaTraspaso &c : m_copias)
         if (c.puntero == j.puntero && c.equipo == m_equipos[equipo].id && c.offIncidencias >= 0)
             for (int i = 0; i < 20; i++) m_datos[c.offIncidencias + i] = 0;
     j.lesionado = false;
+    j.sancionado = false;
     j.jornadasBaja = 0;
+}
+
+quint16 PCFutbolPartida::punteroLibre() const
+{
+    QSet<int> usados;
+    for (const Equipo &e : m_equipos)
+        for (const Jugador &j : e.jugadores) usados.insert(j.puntero);
+    for (const CopiaTraspaso &c : m_copias) usados.insert(c.puntero);
+    // Las Estrellas usan 9900 en adelante; los demás, números bajos
+    for (int p = 1; p < ID_ESTRELLAS; p++)
+        if (!usados.contains(p)) return quint16(p);
+    return 0;
+}
+
+bool PCFutbolPartida::anadirJugador(int equipo, const Jugador &datos, QString *info, QString *error)
+{
+    auto fallo = [&](const QString &t) { if (error) *error = t; return false; };
+    if (equipo < 0 || equipo >= m_equipos.size()) return fallo("Equipo no válido.");
+    const Equipo &e = m_equipos[equipo];
+    if (e.id == ID_ESTRELLAS) return fallo("No se añaden jugadores a las Estrellas Mundiales.");
+    if (e.jugadores.size() + 1 > MAX_PLANTILLA)
+        return fallo(QString("%1 tendría %2 jugadores (máximo %3).").arg(e.nombreCorto).arg(e.jugadores.size() + 1).arg(MAX_PLANTILLA));
+    if (!textoValido(datos.nombreCorto, 16, "Nombre corto", error) || !textoValido(datos.nombreLargo, 40, "Nombre largo", error))
+        return false;
+
+    QSet<int> usados;
+    for (const Equipo &q : m_equipos) for (const Jugador &j : q.jugadores) usados.insert(j.puntero);
+    for (const CopiaTraspaso &c : m_copias) usados.insert(c.puntero);
+    quint16 puntero = datos.puntero;
+    if (puntero == 0 || usados.contains(puntero)) puntero = punteroLibre();
+    if (puntero == 0) return fallo("No quedan identidades libres.");
+
+    QList<int> dorsales;
+    for (const Jugador &j : e.jugadores) dorsales << j.dorsal;
+    int dorsal = datos.dorsal > 0 ? datos.dorsal : 1;
+    if (dorsales.contains(dorsal))
+        for (dorsal = 1; dorsales.contains(dorsal); dorsal++) {}
+    const int alineacion = e.jugadores.size() + 1;
+
+    QByteArray r;
+    if (m_pro)
+    {
+        // Promanager: se parte de un jugador del mismo equipo (para los campos
+        // que no se conocen) y se ponen los datos del nuevo
+        const Jugador *plantilla = nullptr;
+        for (const Jugador &j : e.jugadores)
+            if (j.procedencia != ID_ESTRELLAS && !j.lesionado && !j.sancionado) plantilla = &j;
+        if (!plantilla) return fallo("No hay ningún jugador en el equipo que sirva de modelo.");
+        r.append(char(puntero & 0xFF)); r.append(char(puntero >> 8));
+        r += textoCodificado(datos.nombreCorto);
+        r += textoCodificado(datos.nombreLargo);
+        r += m_datos.mid(plantilla->offEquipo, plantilla->fin - plantilla->offEquipo);
+        Lector lr(r);
+        Jugador n;
+        leerJugadorPro(lr, &n, m_jornadaActual);
+        if (lr.mal || n.fin != r.size()) return fallo("Error interno al crear el jugador.");
+        ponerU16(r, n.offEquipo, e.id);
+        ponerU16(r, n.offEquipo2, e.id);
+        ponerU16(r, n.offOrden, alineacion);
+        r[n.offDatos] = char(qBound(0, datos.posicion, 3));
+        r[n.offDorsal - 3] = char(datos.extranjero ? 1 : 0);
+        r[n.offDorsal - 2] = char(qBound(0, datos.piel, 2));
+        r[n.offDorsal - 1] = char(qBound(0, datos.pelo, 5));
+        r[n.offDorsal] = char(dorsal);
+        r[n.offAlineacion] = char(alineacion);
+        QByteArray v(8, 0);
+        ponerF64(v, 0, qMax(0.0, datos.valor));
+        for (int i = 0; i < 8; i++) r[n.offValor + i] = v[i];
+        for (int i = 0; i < 4; i++) r[n.offMedias + i] = char(qBound(0, datos.media[i], MAX_MEDIA));
+        for (int i = 0; i < 4; i++) r[n.offAptitudes + i] = char(datos.aptitud[i] ? 1 : 0);
+        r[n.offEnergia] = char(qBound(0, datos.energia, MAX_ENERGIA));
+        for (int c = 0; c < 5; c++)                                    // sin bajas ni amarillas
+            for (int i = 0; i < 4; i++) r[n.offGrupo[c] + i] = 0;
+    }
+    else
+    {
+    r.append(char(puntero & 0xFF)); r.append(char(puntero >> 8));
+    r += textoCodificado(datos.nombreCorto);
+    r += textoCodificado(datos.nombreLargo);
+    r.append(char(e.id & 0xFF)); r.append(char(e.id >> 8));        // procedencia
+    r.append(char(e.id & 0xFF)); r.append(char(e.id >> 8));        // equipo actual
+    r.append(char(qBound(0, datos.posicion, 3)));
+    r.append(char(qBound(0, datos.demarcacion, 18)));
+    r.append(char(datos.extranjero ? 1 : 0));
+    r.append(char(qBound(0, datos.piel, 2)));
+    r.append(char(qBound(0, datos.pelo, 5)));
+    r.append(char(dorsal));
+    r.append(char(alineacion));
+    r.append(QByteArray(20, 0));                                   // sin bajas ni amarillas
+    r.append(QByteArray(2, 0));
+    QByteArray v(8, 0);
+    ponerF64(v, 0, qMax(0.0, datos.valor));
+    r += v;
+    for (int i = 0; i < 4; i++) r.append(char(qBound(0, datos.media[i], MAX_MEDIA)));
+    for (int i = 0; i < 4; i++) r.append(char(datos.aptitud[i] ? 1 : 0));
+    r.append(char(qBound(0, datos.energia, MAX_ENERGIA)));
+    }
+
+    aplicar();
+    QList<QList<QByteArray>> js;
+    QList<QByteArray> cs;
+    for (int k = 0; k < m_equipos.size(); k++)
+    {
+        const Equipo &q = m_equipos[k];
+        QByteArray cab = m_datos.mid(q.inicio, q.fin - q.inicio);
+        if (k == equipo) ponerU16(cab, q.offNumJugadores - q.inicio, q.jugadores.size() + 1);
+        cs << cab;
+        QList<QByteArray> l;
+        for (const Jugador &j : q.jugadores) l << m_datos.mid(j.inicio, j.fin - j.inicio);
+        if (k == equipo) l << r;
+        js << l;
+    }
+    const QString nombreEquipo = e.nombreCorto;
+    if (!reconstruir(js, cs, error)) return false;
+    if (info)
+        *info = QString("%1 añadido a %2: puesto %3 de la alineación, dorsal %4 (identidad %5)")
+                    .arg(datos.nombreCorto, nombreEquipo).arg(alineacion).arg(dorsal).arg(puntero);
+    return true;
 }
