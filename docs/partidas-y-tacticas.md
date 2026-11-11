@@ -81,7 +81,7 @@ hacia 0x1DF0.
 | detrás | 8 bytes de estado: nº de jugadores humanos, **jornada actual** (la de las bajas), dos variables del bucle de liga y promoción, una del partido, otra sin uso visto, **competición en curso** (`nActualComp`) y otra del bucle |
 | detrás | Calendario de Primera: 45 × 11 partidos × 4 bytes: local, visitante, goles local, goles visitante. Los goles valen 255 si no se ha jugado. Los equipos se numeran como `EQ9500nn`. |
 | detrás | Calendario de Segunda: 38 × 10 × 4 bytes |
-| detrás | Las cuatro copas (Copa del Rey, Recopa, UEFA y Copa de Europa): una cabecera de u16 y los cruces de 10 bytes. Ver «Copas» más abajo. La marca 5 lleva la tabla de clasificados para Europa (15 u16, la de `0xA21AC`) y 4 u16 más. |
+| detrás | Las cuatro copas (Copa del Rey, Recopa, UEFA y Copa de Europa): una cabecera de u16 y los cruces de 10 bytes. Ver «Copas» más abajo. La marca 5 lleva la tabla de clasificados para Europa (15 u16, la de `0xA21AC`) y los 4 equipos de la promoción. |
 | detrás | **Los 42 equipos completos**, más un bloque «SEGUNDA B» (de 2,2 a 3,8 KB cada uno) |
 
 Cada equipo de la partida lleva:
@@ -113,7 +113,7 @@ Tras la cabecera (ver tabla), lo que escribe `0x101e0`:
    - Copa de la UEFA: 23 u16, la marca `3`, y 63 cruces (64 equipos).
    - Copa de Europa: 6 u16, la marca `4`, 7 cruces (final, semifinales y
      cuartos) y 6 × 8 partidos de la fase de grupos.
-4. La marca `5` y 19 u16.
+4. La marca `5` y 19 u16: clasificados para Europa (15) y promoción (4).
 5. Lista de traspasos: `0`, u16, double, u16, double y un jugador, repetido hasta
    `FFFF`.
 6. Orden de los equipos: 22 + 20 u16.
@@ -390,8 +390,9 @@ partida guardada, no de los DBC.** Por tanto:
 
 ## Copas (Liga Manager)
 
-Comprobado con 11 partidas grabadas a lo largo de una temporada jugada de
-forma automática con el Real Madrid (jornadas 3 a 29, hasta las finales). Los ids de equipo son los de la base de datos: los españoles
+Comprobado con 20 partidas grabadas a lo largo de una temporada y media
+jugada de forma automática con el Real Madrid (jornada 3 de la primera
+temporada a jornada 6 de la segunda). Los ids de equipo son los de la base de datos: los españoles
 son 1 Barcelona, 2 Deportivo, 3 Zaragoza, 4 Real Madrid…, y los extranjeros
 llevan el país en las centenas (852, 2102…).
 
@@ -439,24 +440,57 @@ la jornada 1 al final. Usan solo la ida (bytes 1 y 3 a 255).
 
 | u16 | Significado |
 |---|---|
-| 0 | cruces con la ida jugada y la vuelta pendiente (0 si no hay ronda a medias) |
+| 0 | cruces con la ida jugada y la vuelta pendiente (0 si no hay ronda a medias; se queda en 1 tras la final) |
 | 1 | rondas terminadas (en la Copa de Europa cuenta también las 6 jornadas de grupos: 8 = grupos, cuartos y semifinales) |
-| 2 | 1 entre la ida y la vuelta, 0 si no |
+| 2 | 1 entre la ida y la vuelta, 0 si no (se queda en 1 tras la final) |
 | 3 | equipos que siguen vivos (32 → 16 → 8 en la Recopa) |
-| 4, 5 | 0 |
+| 4 | **campeón** (id), 0 hasta que se juega la primera final |
+| 5 | **subcampeón** (id) |
 
 Ejemplos de la Recopa: `16 0 1 32` tras la ida de la primera ronda,
 `0 1 0 16` al terminarla, `8 1 1 16` tras la ida de la segunda, y
-`0 2 0 8` al terminarla.
+`0 2 0 8` al terminarla. Tras la final: `1 4 1 2 302 502` (gana el PSG,
+302, al Everton, 502).
 
-- Recopa y UEFA siguen con una lista de ids de equipo terminada en `FFFF`:
-  los equipos de las ligas de la base de datos con plaza directa (8 y 16;
-  incluye a los españoles). No cambia durante la temporada.
-- La Copa del Rey lleva un u16 más al principio. Vale 6, que es la ronda de
-  entrada (la de 44 cruces, la sexta empezando por la final). Detrás vienen
-  los mismos 4 campos (`40 0 1 80` tras la primera ida, `0 1 0 40` al
-  acabarla) y otro 0.
-- Antes de que empiece una copa, su cabecera está entera a 0.
+- Recopa y UEFA siguen con la **lista de participantes** terminada en `FFFF`
+  (8 y 16 ids). Los extranjeros son siempre los mismos; los españoles del
+  final de la lista son los clasificados de la temporada (Recopa: 2
+  Deportivo → 18 Espanyol; UEFA: 19 1 6 → 2 3 11). No cambia durante la
+  temporada.
+- La Copa del Rey lleva un u16 más al principio: 6 mientras se juega, que es
+  la ronda de entrada (la de 44 cruces, la sexta empezando por la final), y
+  0 al empezar temporada. Detrás vienen los mismos 6 campos (`40 0 1 80` tras
+  la primera ida, `0 1 0 40` al acabarla; campeón y subcampeón en los dos
+  últimos: `1 18`, Barcelona y Espanyol).
+- En la primera temporada, antes de que empiece una copa, su cabecera está
+  entera a 0.
+
+**Finales.** La de la Copa del Rey, la Recopa y la Copa de Europa son a
+partido único (`0 255 129 255`); la de la UEFA es a ida y vuelta.
+
+**Cambio de temporada** (partida grabada en la jornada 1 de la segunda
+temporada y seis jornadas después):
+
+- Las cabeceras ponen a 0 los contadores (u16 0 a 3) y conservan el campeón
+  y el subcampeón de la temporada anterior.
+- **Los cruces no se borran:** los de la temporada anterior, final incluida,
+  siguen ahí hasta que la nueva ronda escribe encima. Para saber qué cruces
+  son de esta temporada hay que mirar los contadores de la cabecera.
+- Tabla de la marca 5: los 15 primeros u16 pasan a ser los clasificados
+  nuevos (`4 1 FFFF 3 18 FFFF 2 2 3 11 FFFF FFFF FFFF`: Barcelona a la Copa
+  de Europa, Espanyol a la Recopa, Deportivo, Zaragoza y Real Sociedad a la
+  UEFA). Los 4 u16 que siguen, a 0 durante la primera temporada, son la
+  **promoción**: los dos de Primera y los dos de Segunda que la jugaron
+  (`20 29 25 16`: Compostela–Mallorca y Mérida–Logroñés).
+- El orden de 42 equipos pasa a ser la Primera nueva, por la clasificación
+  final, seguida de la Segunda.
+- En cada equipo: división nueva, puesto final en «puesto anterior» y a 0
+  las semanas de crédito y la jornada en números rojos. Los equipos de la
+  máquina vuelven a tener la caja igual al presupuesto. El humano conserva
+  la caja (el Real Madrid, que bajó, seguía con 2.342 millones).
+- Estado de la cabecera: `1 0 5 1 3 1 0 4` en la jornada 1 de la segunda
+  temporada, frente a `1 1 0 0 3 0 0 4` en la de la primera. Los bytes 3 y 5
+  pasan de 0 a 1, probablemente el número de temporada.
 
 ## Pendiente
 
