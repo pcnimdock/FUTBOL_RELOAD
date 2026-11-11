@@ -81,7 +81,7 @@ hacia 0x1DF0.
 | detrás | 8 bytes de estado: nº de jugadores humanos, **jornada actual** (la de las bajas), dos variables del bucle de liga y promoción, una del partido, otra sin uso visto, **competición en curso** (`nActualComp`) y otra del bucle |
 | detrás | Calendario de Primera: 45 × 11 partidos × 4 bytes: local, visitante, goles local, goles visitante. Los goles valen 255 si no se ha jugado. Los equipos se numeran como `EQ9500nn`. |
 | detrás | Calendario de Segunda: 38 × 10 × 4 bytes |
-| detrás | Copa del Rey, Copa de Europa, Recopa y UEFA: una cabecera de u16 y los cruces de 10 bytes (u16 equipo 1, u16 equipo 2 y 6 u8 escritos en el orden 8, 11, 9, 12, 10, 13 de la estructura, que por ese orden son con toda probabilidad los goles de ida, vuelta y penaltis de cada equipo; no se ha llegado a ver un cruce jugado). La marca 5 lleva la tabla de clasificados para Europa (15 u16, la de `0xA21AC`) y 4 u16 más. |
+| detrás | Las cuatro copas (Copa del Rey, Recopa, UEFA y Copa de Europa): una cabecera de u16 y los cruces de 10 bytes. Ver «Copas» más abajo. La marca 5 lleva la tabla de clasificados para Europa (15 u16, la de `0xA21AC`) y 4 u16 más. |
 | detrás | **Los 42 equipos completos**, más un bloque «SEGUNDA B» (de 2,2 a 3,8 KB cada uno) |
 
 Cada equipo de la partida lleva:
@@ -107,11 +107,12 @@ Tras la cabecera (ver tabla), lo que escribe `0x101e0`:
 
 1. 70 bytes de copyright y 8 bytes de estado.
 2. Calendarios: Primera, 45 × 11 × 4 bytes; Segunda, 38 × 10 × 4 bytes.
-3. Copas. Cada cruce ocupa 10 bytes: 2 × u16 y 6 × u8.
+3. Copas (ver «Copas» más abajo). Cada cruce ocupa 10 bytes.
    - Copa del Rey: 7 u16, la marca `1`, y 15 + 77 cruces.
-   - Copa de Europa: 15 u16, la marca `2`, y 31 cruces.
-   - Recopa: 23 u16, la marca `3`, y 63 cruces.
-   - UEFA: 6 u16, la marca `4`, y 7 + 48 cruces.
+   - Recopa: 15 u16, la marca `2`, y 31 cruces (32 equipos).
+   - Copa de la UEFA: 23 u16, la marca `3`, y 63 cruces (64 equipos).
+   - Copa de Europa: 6 u16, la marca `4`, 7 cruces (final, semifinales y
+     cuartos) y 6 × 8 partidos de la fase de grupos.
 4. La marca `5` y 19 u16.
 5. Lista de traspasos: `0`, u16, double, u16, double y un jugador, repetido hasta
    `FFFF`.
@@ -387,15 +388,82 @@ partida guardada, no de los DBC.** Por tanto:
   Los nombres son de longitud variable, así que cambiarlos de largo mueve
   todo lo que va detrás; los valores numéricos se pueden cambiar en su sitio.
 
+## Copas (Liga Manager)
+
+Comprobado con 5 partidas grabadas a lo largo de 15 fechas de una temporada
+jugada con el Real Madrid (jornadas 3 a 12, con cruces de ida y vuelta ya
+resueltos). Los ids de equipo son los de la base de datos: los españoles
+son 1 Barcelona, 2 Deportivo, 3 Zaragoza, 4 Real Madrid…, y los extranjeros
+llevan el país en las centenas (852, 2102…).
+
+**Las marcas no van en el orden de la tabla de clasificados.** Lo confirman
+los equipos españoles de 1995-96 que aparecen en cada bloque:
+
+| Marca | Competición | Españoles | Código en la tabla de `0xA21AC` |
+|---|---|---|---|
+| 1 | Copa del Rey | todos | — |
+| 2 | Recopa | Zaragoza (3), Deportivo (2) | 3 |
+| 3 | Copa de la UEFA | Betis (19), Barcelona (1), Sevilla (6) | 2 |
+| 4 | Copa de Europa (Liga de Campeones) | Real Madrid (4) | 4 |
+
+**Cruce** (10 bytes): u16 equipo 1, u16 equipo 2, y 6 u8:
+
+| byte | Significado |
+|---|---|
+| 0 | goles del equipo 1 en la ida; **+128 si es el que pasa** |
+| 1 | goles del equipo 1 en la vuelta (255 = sin jugar) |
+| 2 | goles del equipo 2 en la ida; **+128 si es el que pasa** |
+| 3 | goles del equipo 2 en la vuelta (255 = sin jugar) |
+| 4, 5 | siempre 0 en todo lo visto (ni siquiera en un cruce empatado que tuvo que ir a penaltis) |
+
+Un cruce sorteado y sin jugar lleva `255 255 255 255 0 0`; con la ida
+jugada, por ejemplo, `2 255 1 255 0 0` (2-1). Al resolverse, el que pasa
+lleva el bit alto en su byte de ida: `130 0 1 0` es 2+0 contra 1+0, pasa
+el equipo 1; `1 0 129 2` es 1+0 contra 1+2, pasa el equipo 2.
+
+El equipo 1 juega la ida en casa. Comprobado en los 112 cruces resueltos de
+las partidas: el bit va siempre al que suma más goles, y en caso de empate
+al que marcó más fuera (`129 1 0 2` es 2-2 y pasa el equipo 1 por su gol en
+la vuelta). En `129 2 1 2` (3-3 y un gol fuera cada uno) pasa el equipo 1 sin
+que los bytes 4 y 5 cambien: si hubo penaltis, el resultado no se guarda.
+
+Las rondas van **de la final hacia atrás**: el primer cruce es la final,
+luego 2 semifinales, 4 cuartos, etc. La primera ronda que se juega es la
+última del bloque. En la Copa de Europa, los 6 × 8 partidos son las 6
+jornadas de la fase de grupos (4 grupos de 4, 8 partidos por jornada), con
+la jornada 1 al final. Usan solo la ida (bytes 1 y 3 a 255).
+
+**Cabeceras.** Recopa, UEFA y Copa de Europa empiezan igual:
+
+| u16 | Significado |
+|---|---|
+| 0 | cruces con la ida jugada y la vuelta pendiente (0 si no hay ronda a medias) |
+| 1 | rondas terminadas (en la Copa de Europa, jornadas de grupos jugadas) |
+| 2 | 1 entre la ida y la vuelta, 0 si no |
+| 3 | equipos que siguen vivos (32 → 16 → 8 en la Recopa) |
+| 4, 5 | 0 |
+
+Ejemplos de la Recopa: `16 0 1 32` tras la ida de la primera ronda,
+`0 1 0 16` al terminarla, `8 1 1 16` tras la ida de la segunda, y
+`0 2 0 8` al terminarla.
+
+- Recopa y UEFA siguen con una lista de ids de equipo terminada en `FFFF`:
+  los equipos de las ligas de la base de datos con plaza directa (8 y 16;
+  incluye a los españoles). No cambia durante la temporada.
+- La Copa del Rey lleva un u16 más al principio. Vale 6, que es la ronda de
+  entrada (la de 44 cruces, la sexta empezando por la final). Detrás vienen
+  los mismos 4 campos (`40 0 1 80` tras la primera ida, `0 1 0 40` al
+  acabarla) y otro 0.
+- Antes de que empiece una copa, su cabecera está entera a 0.
+
 ## Pendiente
 
 - Identificar los otros double del equipo.
 - **Sin identificar (no afectan a la edición):**
   - Liga Manager: 5 de los 8 bytes de estado de la cabecera (variables internas
-    del bucle de liga y del partido) y las cabeceras de u16 de cada copa;
-  - el significado exacto de los 6 bytes de cada cruce de copa (ida, vuelta y
-    penaltis por equipo, deducido del orden pero sin ver un cruce jugado) y de
-    los 6 × 8 cruces de la UEFA (probablemente la fase de grupos);
+    del bucle de liga y del partido);
+  - los bytes 4 y 5 de cada cruce de copa (siempre 0) y el primer u16 de
+    la cabecera de la Copa de Europa en la jornada 3 (vale 2);
   - Promanager: el u32 y el segundo double del jugador, y u16 y bytes
     siempre fijos (FFFF, 255, 0) que no cambian en las partidas vistas;
   - campos sin inicializar (valores al azar fijos por equipo): Liga Manager

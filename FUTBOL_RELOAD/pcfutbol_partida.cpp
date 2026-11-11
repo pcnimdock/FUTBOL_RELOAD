@@ -329,13 +329,13 @@ bool PCFutbolPartida::cargarDatos(const QByteArray &datos, QString *error)
     if (r.u16() != 1) return fallo("Copa del Rey");
     r.saltar(10 * (15 + 77));
     r.saltar(15 * 2);
-    if (r.u16() != 2) return fallo("Copa de Europa");
+    if (r.u16() != 2) return fallo("Recopa");
     r.saltar(10 * 31);
     r.saltar(23 * 2);
-    if (r.u16() != 3) return fallo("Recopa");
+    if (r.u16() != 3) return fallo("Copa de la UEFA");
     r.saltar(10 * 63);
     r.saltar(6 * 2);
-    if (r.u16() != 4) return fallo("UEFA");
+    if (r.u16() != 4) return fallo("Copa de Europa");
     r.saltar(10 * (7 + 48));
     if (r.u16() != 5) return fallo("tablas");
     r.saltar(19 * 2);
