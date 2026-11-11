@@ -1,0 +1,94 @@
+# Compila FUTBOL_RELOAD para Windows (zip) y Linux (AppImage).
+# Al subir una etiqueta v*/FUTBOL_RELOAD_V* crea una prerelease con ambos.
+name: compilar
+
+on:
+  push:
+    tags: ['FUTBOL_RELOAD_V*']
+  workflow_dispatch:
+
+env:
+  QT_VERSION: '6.8.3'
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_mingw
+          modules: ''
+          tools: 'tools_mingw1310'
+      - name: Compilar
+        shell: bash
+        run: |
+          export PATH="$IQTA_TOOLS/mingw1310_64/bin:$PATH"
+          mkdir build && cd build
+          qmake ../FUTBOL_RELOAD/FUTBOL_RELOAD.pro CONFIG+=release
+          mingw32-make -j4
+      - name: Empaquetar
+        shell: bash
+        run: |
+          export PATH="$IQTA_TOOLS/mingw1310_64/bin:$PATH"
+          mkdir -p dist/FUTBOL_RELOAD
+          cp build/release/FUTBOL_RELOAD.exe dist/FUTBOL_RELOAD/
+          windeployqt --release --no-translations --compiler-runtime dist/FUTBOL_RELOAD/FUTBOL_RELOAD.exe
+          cp README.md LICENSE dist/FUTBOL_RELOAD/
+          cd dist && 7z a ../FUTBOL_RELOAD-windows-x64.zip FUTBOL_RELOAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: FUTBOL_RELOAD-windows-x64.zip
+
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencias
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
+            libxcb-shape0 libxcb-xinerama0 libfuse2 imagemagick
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+      - name: Compilar
+        run: |
+          mkdir build && cd build
+          qmake ../FUTBOL_RELOAD/FUTBOL_RELOAD.pro CONFIG+=release
+          make -j4
+      - name: AppImage
+        run: |
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy*.AppImage
+          convert FUTBOL_RELOAD/img/logo.png -resize 256x256 futbol_reload.png
+          export QMAKE=$(which qmake) EXTRA_PLATFORM_PLUGINS=libqwayland-generic.so
+          export LD_LIBRARY_PATH="$QT_ROOT_DIR/lib:$LD_LIBRARY_PATH"
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir \
+            -e build/FUTBOL_RELOAD -d packaging/linux/futbol_reload.desktop -i futbol_reload.png \
+            --plugin qt --output appimage
+          mv FUTBOL_RELOAD*.AppImage FUTBOL_RELOAD-linux-x86_64.AppImage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: FUTBOL_RELOAD-linux-x86_64.AppImage
+
+  prerelease:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          files: |
+            windows/FUTBOL_RELOAD-windows-x64.zip
+            linux/FUTBOL_RELOAD-linux-x86_64.AppImage

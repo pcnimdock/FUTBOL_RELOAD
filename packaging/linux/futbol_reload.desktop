@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=FUTBOL RELOAD
+Comment=Editor de PC Fútbol 4.0 / 4.5
+Exec=FUTBOL_RELOAD
+Icon=futbol_reload
+Categories=Utility;
+Terminal=false
